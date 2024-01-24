@@ -218,7 +218,7 @@
 					$ToastMessage = fetchData.message
 				}
 			} catch (e) {
-				Log(Shared.LogLevel.ERROR, CURRENT_SECTION, currentModelTemplate, 'Update template')
+				Log(Shared.LogLevel.ERROR, CURRENT_SECTION, e, 'Update model-template error')
 				$ToastType = Shared.ToastType.ERROR
 				$ToastMessage = FETCH_ERROR
 			}
@@ -249,7 +249,7 @@
 					$ToastMessage = data.message
 				}
 			} catch (e) {
-				Log(Shared.LogLevel.ERROR, CURRENT_SECTION, e, 'Update Template')
+				Log(Shared.LogLevel.ERROR, CURRENT_SECTION, e, 'Create Template error')
 				$ToastType = Shared.ToastType.ERROR
 				$ToastMessage = FETCH_ERROR
 			}

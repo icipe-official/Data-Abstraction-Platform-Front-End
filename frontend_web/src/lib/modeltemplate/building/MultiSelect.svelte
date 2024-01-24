@@ -276,7 +276,7 @@
 				>
 					<span class="w-fit h-fit self-center bg-transparent"><Icon type="mdi:search" /></span>
 				</button>
-				<input class="join-item flex-[9.5] input input-secondary w-full" type="search" placeholder="Search predefined lists..." bind:value={searchCatalogueQuery} />
+				<input class="join-item flex-[9.5] input input-secondary w-full" type="search" placeholder="Search catalogue..." bind:value={searchCatalogueQuery} />
 			</span>
 		</div>
 		{#if $CataloguesSearchResults.length > 0}

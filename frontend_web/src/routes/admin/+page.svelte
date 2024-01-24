@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { browser } from '$app/environment'
-	import { CurrentUser } from '$lib/stores'
+	import { CurrentUser, SearchResultsClickedIndex } from '$lib/stores'
 	import Directory from '$lib/admin/Directory.svelte'
 	import Projects from '$lib/admin/Projects.svelte'
 	import Storage from '$lib/admin/Storage.svelte'
 	import { LOGO_URL, Shared } from '$lib/constants'
 	import Icon from '$lib/components/Icon.svelte'
+	import { onDestroy } from 'svelte'
+	import { ResetDirectoryStore, ResetProjectsStore, ResetStorageStore } from '$lib/utils'
 
 	enum Tab {
 		DIRECTORY = 'DIRECTORY',
@@ -14,6 +16,13 @@
 	}
 
 	let currentTab: Tab = Tab.DIRECTORY
+
+	onDestroy(() => {
+		ResetDirectoryStore()
+		ResetProjectsStore()
+		ResetStorageStore()
+		$SearchResultsClickedIndex = null
+	})
 </script>
 
 {#if browser && $CurrentUser !== null && $CurrentUser.SystemUserCreatedOn !== '0001-01-01T00:00:00Z'}
@@ -25,16 +34,16 @@
 				<button role="tab" class="tab self-center" class:tab-active={currentTab === Tab.STORAGE} on:click={() => (currentTab = Tab.STORAGE)}>Storage</button>
 			</section>
 			<section class="flex">
-				<a class="flex-[0.5] flex tooltip tooltip-left btn-ghost rounded-md p-1" data-tip="Need help? Watch a mini-tutorial" href="https://vimeo.com/886765717?share=copy#t=0" target="_blank">
+				<span class="flex-1 flex">
 					<img src={LOGO_URL} alt="data admin logo" class="max-w-[5vw] max-h-[5vh] self-center" />
 					<div class="w-fit h-fit">
 						<Icon type="mdi:help-circle" iconSize="23" color={Shared.Colors.PRIMARY} />
 					</div>
-				</a>
+				</span>
 			</section>
 		</header>
-        <div class="divider"/>
-		<main class="flex-[9.5] flex flex-col overflow-hidden">
+		<div class="divider" />
+		<main class="flex-[9.5] flex flex-col overflow-hidden p-1">
 			{#if currentTab === Tab.DIRECTORY}
 				<Directory />
 			{:else if currentTab === Tab.PROJECTS}

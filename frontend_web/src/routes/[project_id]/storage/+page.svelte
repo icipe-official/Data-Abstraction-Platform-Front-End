@@ -26,9 +26,12 @@
 		FilesSearchSortBy,
 		FilesSearchSortByOrder,
 		FilesSearchFileWithAbstractions,
-		FilesSearchPreviousQuery
+		FilesSearchPreviousQuery,
+
+		FilesSearchCreatedFilterOptions
+
 	} from '$lib/stores'
-	import { IsProjectUserAuthorized, Log } from '$lib/utils'
+	import { IsProjectUserAuthorized, Log, ResetFilesStore } from '$lib/utils'
 	import { onDestroy } from 'svelte'
 
 	const CURRENT_SECTION = 'Storage'
@@ -288,29 +291,16 @@
 		$LoadingMessage = null
 	}
 
-	let CreatedFilterOptions: any = {}
 	function HandleUpdateCreatedFilterOptions(value: any) {
-		CreatedFilterOptions = value
-		if (Object.keys(CreatedFilterOptions).length < 1) {
+		$FilesSearchCreatedFilterOptions = value
+		if (Object.keys($FilesSearchCreatedFilterOptions).length < 1) {
 			FilterModelTemplate = JSON.stringify(mtFiles)
 		}
-		Log(Shared.LogLevel.DEBUG, CURRENT_SECTION, CreatedFilterOptions, 'Updated Filter options')
+		Log(Shared.LogLevel.DEBUG, CURRENT_SECTION, $FilesSearchCreatedFilterOptions, 'Updated Filter options')
 	}
 
 	let showFilter = false
 	const setShowFilter = (value: boolean) => (showFilter = value)
-	function resetFilter() {
-		$FilesSearchCurrentQuery = ''
-		$FilesSearchPreviousQuery = ''
-		$FilesSearchUseCurrentProject = true
-		$FilesSearchCreatedOnGreaterThan = ''
-		$FilesSearchCreatedOnLessThan = ''
-		$FilesSearchLimit = 1000
-		$FilesSearchOffset = 0
-		$FilesSearchSortBy = 'last_updated_on'
-		$FilesSearchSortByOrder = 'desc'
-		$FilesSearchFileWithAbstractions = ''
-	}
 
 	let quickSearchFiles: IFile[] = []
 	let performingQuickSearch = false
@@ -472,7 +462,7 @@
 								<option selected={$FilesSearchFileWithAbstractions === 'false'} value="false">Without abstractions</option>
 							</select>
 						</div>
-						<button class="btn btn-secondary self-center w-full max-w-[350px] h-fit" on:click={resetFilter}> reset </button>
+						<button class="btn btn-secondary self-center w-full max-w-[350px] h-fit" on:click={ResetFilesStore}> reset </button>
 					</div>
 				{/if}
 				{#if (searchBarFocused || quickSearchResultsFocused) && (performingQuickSearch || quickSearchFiles.length > 0)}
@@ -518,7 +508,7 @@
 	<main class="flex-[9.5] overflow-hidden flex flex-col space-y-1">
 		{#if $FilesSearchResults.length > 0}
 			<div class="divider" />
-			<Table Data={$FilesSearchResults} {HandleClickTableRow} {FilterModelTemplate} DataName="Files" {CreatedFilterOptions} {HandleUpdateCreatedFilterOptions} {HandleUpdateFilterModelTemplate} IncludeIndividualDataRowCounter={false} IncludeIndividualRowNumber={false} />
+			<Table Data={$FilesSearchResults} {HandleClickTableRow} {FilterModelTemplate} DataName="Files" CreatedFilterOptions={$FilesSearchCreatedFilterOptions} {HandleUpdateCreatedFilterOptions} {HandleUpdateFilterModelTemplate} IncludeIndividualDataRowCounter={false} IncludeIndividualRowNumber={false} />
 			<div class="divider" />
 		{:else}
 			<div class="w-full h-full bg-gray-200 flex justify-center">

@@ -1,8 +1,206 @@
 import { PUBLIC_LOG_LEVEL } from '$env/static/public'
 import { get } from 'svelte/store'
 import { DISABLED_REGEX_SEARCH, MAX_EXTRACT, NAME_REGEX_SEARCH, RENDER_HORIZONTALLY_EXTRACT, Shared } from './constants'
-import { CurrentProject } from './stores'
+import { 
+	CurrentProject,
+	AbstractionsSearchResults,
+	AbstractionEditorsSearchResults,
+	AbstractionCurrentTemplate,
+	AbstractionsSearchCurrentAbstractor,
+	AbstractionsSearchCreatedOnGreaterThan,
+	AbstractionsSearchCreatedOnLessThan,
+	AbstractionsSearchLastUpdatedOnGreaterThan,
+	AbstractionsSearchLastUpdatedOnLessThan,
+	AbststractionsSearchIsVerified,
+	AbstractionsSearchLimit,
+	AbstractionsSearchOffset,
+	AbstractionsSearchSortBy,
+	AbstractionsSearchSortByOrder,
+	AbstractionsSearchCreatedFilterOptions,
+	FilesSearchResults,
+	FilesSearchCurrentQuery,
+	FilesSearchPreviousQuery,
+	FilesSearchUseCurrentProject,
+	FilesSearchCreatedOnGreaterThan,
+	FilesSearchCreatedOnLessThan,
+	FilesSearchLimit,
+	FilesSearchOffset,
+	FilesSearchSortBy,
+	FilesSearchSortByOrder,
+	FilesSearchFileWithAbstractions,
+	FilesSearchCreatedFilterOptions,
+	ModelTemplatesSearchResults,
+	ModelTemplatesSearchCurrentQuery,
+	ModelTemplatesSearchPreviousQuery,
+	ModelTemplatesSearchUseCurrentProject,
+	ModelTemplatesSearchCreatedOnGreaterThan,
+	ModelTemplatesSearchCreatedOnLessThan,
+	ModelTemplatesSearchLastUpdatedOnGreaterThan,
+	ModelTemplatesSearchLastUpdatedOnLessThan,
+	ModelTemplatesSearchLimit,
+	ModelTemplatesSearchOffset,
+	ModelTemplatesSearchSortBy,
+	ModelTemplatesSearchSortByOrder,
+	ModelTemplatesSearchCreatedFilterOptions,
+	CataloguesSearchResults,
+	CataloguesSearchCurrentQuery,
+	CataloguesSearchPreviousQuery,
+	CataloguesSearchUseCurrentProject,
+	CataloguesSearchCreatedOnGreaterThan,
+	CataloguesSearchCreatedOnLessThan,
+	CataloguesSearchLastUpdatedOnGreaterThan,
+	CataloguesSearchLastUpdatedOnLessThan,
+	CataloguesSearchLimit,
+	CataloguesSearchOffset,
+	CataloguesSearchSortBy,
+	CataloguesSearchSortByOrder,
+	CataloguesSearchCreatedFilterOptions,
+	DirectorySearchResults,
+	DirectorySearchCurrentQuery,
+	DirectorySearchCreatedFilterOptions,
+	DirectorySearchSortByOrder,
+	DirectorySearchSortBy,
+	DirectorySearchOffset,
+	DirectorySearchLimit,
+	DirectorySearchLastUpdatedOnLessThan,
+	DirectorySearchLastUpdatedOnGreaterThan,
+	DirectorySearchCreatedOnLessThan,
+	DirectorySearchCreatedOnGreaterThan,
+	DirectorySearchPreviousQuery,
+	ProjectsSearchCreatedFilterOptions,
+	ProjectsSearchSortByOrder,
+	ProjectsSearchSortBy,
+	ProjectsSearchOffset,
+	ProjectsSearchLimit,
+	ProjectsSearchLastUpdatedOnLessThan,
+	ProjectsSearchLastUpdatedOnGreaterThan,
+	ProjectsSearchCreatedOnLessThan,
+	ProjectsSearchCreatedOnGreaterThan,
+	ProjectsSearchPreviousQuery,
+	ProjectsSearchCurrentQuery,
+	ProjectsSearchResults,
+	StorageTypesSearchResults,
+	StoragesSearchCreatedFilterOptions,
+	StoragesSearchSortByOrder,
+	StoragesSearchSortBy,
+	StoragesSearchOffset,
+	StoragesSearchLimit,
+	StoragesSearchLastUpdatedOnLessThan,
+	StoragesSearchLastUpdatedOnGreaterThan,
+	StoragesSearchCreatedOnLessThan,
+	StoragesSearchCreatedOnGreaterThan,
+	StoragesSearchResults
+} from './stores'
 import type { FlatTableArrayValue } from './interface'
+
+export function ResetStorageStore() {
+	StoragesSearchResults.set([])
+	StoragesSearchCreatedOnGreaterThan.set('')
+	StoragesSearchCreatedOnLessThan.set('')
+	StoragesSearchLastUpdatedOnGreaterThan.set('')
+	StoragesSearchLastUpdatedOnLessThan.set('')
+	StoragesSearchLimit.set(1000)
+	StoragesSearchOffset.set(0)
+	StoragesSearchSortBy.set('last_updated_on')
+	StoragesSearchSortByOrder.set('desc')
+	StoragesSearchCreatedFilterOptions.set({})
+	StorageTypesSearchResults.set([])
+}
+
+export function ResetProjectsStore() {
+	ProjectsSearchResults.set([])
+	ProjectsSearchCurrentQuery.set('')
+	ProjectsSearchPreviousQuery.set('')
+	ProjectsSearchCreatedOnGreaterThan.set('')
+	ProjectsSearchCreatedOnLessThan.set('')
+	ProjectsSearchLastUpdatedOnGreaterThan.set('')
+	ProjectsSearchLastUpdatedOnLessThan.set('')
+	ProjectsSearchLimit.set(1000)
+	ProjectsSearchOffset.set(0)
+	ProjectsSearchSortBy.set('last_updated_on')
+	ProjectsSearchSortByOrder.set('desc')
+	ProjectsSearchCreatedFilterOptions.set({})
+}
+
+export function ResetDirectoryStore() {
+	DirectorySearchResults.set([])
+	DirectorySearchCurrentQuery.set('')
+	DirectorySearchPreviousQuery.set('')
+	DirectorySearchCreatedOnGreaterThan.set('')
+	DirectorySearchCreatedOnLessThan.set('')
+	DirectorySearchLastUpdatedOnGreaterThan.set('')
+	DirectorySearchLastUpdatedOnLessThan.set('')
+	DirectorySearchLimit.set(1000)
+	DirectorySearchOffset.set(0)
+	DirectorySearchSortBy.set('last_updated_on')
+	DirectorySearchSortByOrder.set('desc')
+	DirectorySearchCreatedFilterOptions.set({})
+}
+
+export function ResetCataloguesStore() {
+	CataloguesSearchResults.set([])
+	CataloguesSearchCurrentQuery.set('')
+	CataloguesSearchPreviousQuery.set('')
+	CataloguesSearchUseCurrentProject.set(true)
+	CataloguesSearchCreatedOnGreaterThan.set('')
+	CataloguesSearchCreatedOnLessThan.set('')
+	CataloguesSearchLastUpdatedOnGreaterThan.set('')
+	CataloguesSearchLastUpdatedOnLessThan.set('')
+	CataloguesSearchLimit.set(1000)
+	CataloguesSearchOffset.set(0)
+	CataloguesSearchSortBy.set('last_updated_on')
+	CataloguesSearchSortByOrder.set('desc')
+	CataloguesSearchCreatedFilterOptions.set({})
+}
+
+export function ResetModelTemplatesStore() {
+	ModelTemplatesSearchResults.set([])
+	ModelTemplatesSearchCurrentQuery.set('')
+	ModelTemplatesSearchPreviousQuery.set('')
+	ModelTemplatesSearchUseCurrentProject.set(true)
+	ModelTemplatesSearchCreatedOnGreaterThan.set('')
+	ModelTemplatesSearchCreatedOnLessThan.set('')
+	ModelTemplatesSearchLastUpdatedOnGreaterThan.set('')
+	ModelTemplatesSearchLastUpdatedOnLessThan.set('')
+	ModelTemplatesSearchLimit.set(1000)
+	ModelTemplatesSearchOffset.set(0)
+	ModelTemplatesSearchSortBy.set('last_updated_on')
+	ModelTemplatesSearchSortByOrder.set('desc')
+	ModelTemplatesSearchCreatedFilterOptions.set({})
+
+}
+
+export function ResetFilesStore() {
+	FilesSearchResults.set([])
+	FilesSearchCurrentQuery.set('')
+	FilesSearchPreviousQuery.set('')
+	FilesSearchUseCurrentProject.set(true)
+	FilesSearchCreatedOnGreaterThan.set('')
+	FilesSearchCreatedOnLessThan.set('')
+	FilesSearchLimit.set(1000)
+	FilesSearchOffset.set(0)
+	FilesSearchSortBy.set('created_on')
+	FilesSearchSortByOrder.set('desc')
+	FilesSearchFileWithAbstractions.set('')
+	FilesSearchCreatedFilterOptions.set({})
+}
+
+export function ResetAbstractionsStore() {
+	AbstractionsSearchResults.set([])
+	AbstractionEditorsSearchResults.set([])
+	AbstractionCurrentTemplate.set(null)
+	AbstractionsSearchCurrentAbstractor.set(null)
+	AbstractionsSearchCreatedOnGreaterThan.set('')
+	AbstractionsSearchCreatedOnLessThan.set('')
+	AbstractionsSearchLastUpdatedOnGreaterThan.set('')
+	AbstractionsSearchLastUpdatedOnLessThan.set('')
+	AbststractionsSearchIsVerified.set('')
+	AbstractionsSearchLimit.set(1000)
+	AbstractionsSearchOffset.set(0)
+	AbstractionsSearchSortBy.set('last_updated_on')
+	AbstractionsSearchSortByOrder.set('desc')
+	AbstractionsSearchCreatedFilterOptions.set({})
+}
 
 export function IsProjectUserAuthorized(ProjectRoles: string[]) {
 	const currentProject = get(CurrentProject)
@@ -539,7 +737,7 @@ export function GetValueInObject(currentObject: any, path: string): any {
 					if (key === paths[0] || (pathIndex !== null && key === pathIndex[1])) {
 						if (pathIndex !== null) {
 							paths.shift()
-							if (currentValue.hasOwnProperty(pathIndex[1])) {
+							if (currentValue.hasOwnProperty(pathIndex[1]) && typeof currentValue[pathIndex[1]] !== 'undefined' && currentValue[pathIndex[1]] !== null) {
 								return get(currentValue[pathIndex[1]][parseInt(pathIndex[2])], paths.join('.'))
 							} else {
 								return null

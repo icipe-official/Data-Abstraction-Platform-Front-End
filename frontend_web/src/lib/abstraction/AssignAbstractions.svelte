@@ -95,7 +95,7 @@
 			url.searchParams.append('sbo', 'desc')
 			if (filesWithAbstractions.length > 1) {
 				url.searchParams.append('fwa', filesWithAbstractions)
-			}			
+			}
 			const fetchResponse = await fetch(url, {
 				credentials: 'include'
 			})
@@ -143,7 +143,7 @@
 		Files?: IFile_temp[]
 		FilesSearchQuery?: string
 		Tags: string
-		SkipFilesWithAbstractions: boolean
+		SkipFilesWithAbstractions?: boolean
 	}
 
 	let skipFilesWithAbstractions = true
@@ -159,8 +159,7 @@
 				DirectoryID: abstractionUser.ID as string,
 				ProjectID: $CurrentProject?.ProjectID as string,
 				ModelTemplateID: abstractionTemplate.ID as string,
-				Tags: abstractionCommonTag,
-				SkipFilesWithAbstractions: skipFilesWithAbstractions
+				Tags: abstractionCommonTag
 			}
 			if (switchPickFilesManually) {
 				if (pickedFiles.length < 1) {
@@ -178,6 +177,7 @@
 				} else {
 					abstractionCreation.FilesSearchQuery = fileSearchTag
 				}
+				abstractionCreation.SkipFilesWithAbstractions = skipFilesWithAbstractions
 			}
 
 			$Loading = true
@@ -414,6 +414,12 @@
 							<span class="join-item join-label-primary text-xs"> Use files with the common file tag to create abstractions from. For example, 3ii will use files uploaded with the name between 300 and 399 and automatically create abstractions from them. </span>
 						</span>
 					</section>
+					<div class="flex justify-between">
+						<div class="flex justify-between flex-[9]">
+							<span class="label-text text-primary text-lg">Skip files that already have abstractions</span>
+						</div>
+						<input type="checkbox" class="checkbox checkbox-primary" bind:checked={skipFilesWithAbstractions} />
+					</div>
 				{:else}
 					<section class="flex-[9] flex justify-center">
 						<div class="form-control w-[90%]">
@@ -430,7 +436,7 @@
 								<input class="join-item flex-[9.5] input input-secondary w-full shadow-sm shadow-gray-600" type="search" placeholder="Search files..." bind:value={searchFilesQuery} />
 							</span>
 						</div>
-					</section>					
+					</section>
 					<div class="join join-vertical">
 						<span class="join-item join-label-primary join-label-content">Filter by files with/without abstractions</span>
 						<select class="join-item select select-primary flex-1" bind:value={filesWithAbstractions}>
@@ -477,12 +483,6 @@
 					{/if}
 				{/if}
 				<div class="divider" />
-				<div class="flex justify-between">
-					<div class="flex justify-between flex-[9]">
-						<span class="label-text text-primary text-lg">Skip files that already have abstractions</span>
-					</div>
-					<input type="checkbox" class="checkbox checkbox-primary" bind:checked={skipFilesWithAbstractions} />
-				</div>
 				<section class="join self-center">
 					<button
 						class="join-item flex-1 h-fit btn btn-secondary self-center"

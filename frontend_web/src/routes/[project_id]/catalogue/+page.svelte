@@ -26,9 +26,12 @@
 		CataloguesSearchLastUpdatedOnLessThan,
 		CataloguesSearchSortBy,
 		CataloguesSearchSortByOrder,
-		CataloguesSearchPreviousQuery
+		CataloguesSearchPreviousQuery,
+
+		CataloguesSearchCreatedFilterOptions
+
 	} from '$lib/stores'
-	import { IsProjectUserAuthorized, Log } from '$lib/utils'
+	import { IsProjectUserAuthorized, Log, ResetCataloguesStore } from '$lib/utils'
 	import { onDestroy } from 'svelte'
 
 	const CURRENT_SECTION = 'Catalogues'
@@ -167,30 +170,16 @@
 		goto(`${base}/${$CurrentProject?.ProjectID}/catalogue/${$CataloguesSearchResults[index].ID}`)
 	}
 
-	let CreatedFilterOptions: any = {}
 	function HandleUpdateCreatedFilterOptions(value: any) {
-		CreatedFilterOptions = value
-		if (Object.keys(CreatedFilterOptions).length < 1) {
+		$CataloguesSearchCreatedFilterOptions = value
+		if (Object.keys($CataloguesSearchCreatedFilterOptions).length < 1) {
 			FilterModelTemplate = JSON.stringify(mtCatalogue)
 		}
-		Log(Shared.LogLevel.DEBUG, CURRENT_SECTION, CreatedFilterOptions, 'Updated Filter options')
+		Log(Shared.LogLevel.DEBUG, CURRENT_SECTION, $CataloguesSearchCreatedFilterOptions, 'Updated Filter options')
 	}
 
 	let showFilter = false
 	const setShowFilter = (value: boolean) => (showFilter = value)
-	function resetFilter() {
-		$CataloguesSearchCurrentQuery = ''
-		$CataloguesSearchPreviousQuery = ''
-		$CataloguesSearchUseCurrentProject = true
-		$CataloguesSearchCreatedOnGreaterThan = ''
-		$CataloguesSearchCreatedOnLessThan = ''
-		$CataloguesSearchLastUpdatedOnGreaterThan = ''
-		$CataloguesSearchLastUpdatedOnLessThan = ''
-		$CataloguesSearchLimit = 1000
-		$CataloguesSearchOffset = 0
-		$CataloguesSearchSortBy = 'last_updated_on'
-		$CataloguesSearchSortByOrder = 'desc'
-	}
 
 	let quickSearchCatalogues: ICatalogue[] = []
 	let performingQuickSearch = false
@@ -353,7 +342,7 @@
 								</div>
 							</span>
 						</section>
-						<button class="btn btn-secondary self-center w-full max-w-[350px] h-fit" on:click={resetFilter}> reset </button>
+						<button class="btn btn-secondary self-center w-full max-w-[350px] h-fit" on:click={ResetCataloguesStore}> reset </button>
 					</div>
 				{/if}
 				{#if (searchBarFocused || quickSearchResultsFocused) && (performingQuickSearch || quickSearchCatalogues.length > 0)}
@@ -394,7 +383,7 @@
 	<main class="flex-[9.5] overflow-hidden flex flex-col space-y-1">
 		{#if $CataloguesSearchResults.length > 0}
 			<div class="divider" />
-			<Table Data={$CataloguesSearchResults} {HandleClickTableRow} {FilterModelTemplate} DataName="Model Templates" {CreatedFilterOptions} {HandleUpdateCreatedFilterOptions} {HandleUpdateFilterModelTemplate} IncludeIndividualDataRowCounter={false} IncludeIndividualRowNumber={false} />
+			<Table Data={$CataloguesSearchResults} {HandleClickTableRow} {FilterModelTemplate} DataName="Catalogue" CreatedFilterOptions={$CataloguesSearchCreatedFilterOptions} {HandleUpdateCreatedFilterOptions} {HandleUpdateFilterModelTemplate} IncludeIndividualDataRowCounter={false} IncludeIndividualRowNumber={false} />
 			<div class="divider" />
 		{:else}
 			<div class="w-full h-full bg-gray-200 flex justify-center">

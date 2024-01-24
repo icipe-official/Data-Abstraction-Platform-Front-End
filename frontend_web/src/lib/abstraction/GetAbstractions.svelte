@@ -25,7 +25,7 @@
 		AbstractionsSearchSortBy,
 		AbstractionsSearchSortByOrder,
 	} from '$lib/stores'
-	import { Log, LocalDateFromString, LocalTimeFromString } from '$lib/utils'
+	import { Log, LocalDateFromString, LocalTimeFromString, ResetAbstractionsStore } from '$lib/utils'
 
 	const CURRENT_SECTION = 'Get Abstractions'
 
@@ -127,20 +127,8 @@
 	}
 
 	function handleReset() {
-		$AbstractionCurrentTemplate = null
 		searchModelTemplateQuery = ''
-		if (!MyAbstractions) {
-			$AbstractionsSearchCurrentAbstractor = null
-		}
-		$AbstractionsSearchCreatedOnGreaterThan = ''
-		$AbstractionsSearchCreatedOnLessThan = ''
-		$AbstractionsSearchLastUpdatedOnGreaterThan = ''
-		$AbstractionsSearchLastUpdatedOnLessThan = ''
-		$AbststractionsSearchIsVerified = ''
-		$AbstractionsSearchLimit = 1000
-		$AbstractionsSearchOffset = 0
-		$AbstractionsSearchSortBy = 'last_updated_on'
-		$AbstractionsSearchSortByOrder = 'desc'
+		ResetAbstractionsStore()
 	}
 
 	async function searchAbstractions() {

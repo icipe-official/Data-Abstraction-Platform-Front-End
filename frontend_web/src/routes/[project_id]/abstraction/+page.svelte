@@ -23,7 +23,8 @@
 		AbstractionsSearchSortBy,
 		AbstractionsSearchSortByOrder,
 		AbstractionTimeoutActive,
-		AbstractionTimeoutSeconds
+		AbstractionTimeoutSeconds,
+		AbstractionsSearchCreatedFilterOptions
 	} from '$lib/stores'
 	import { AppendColumnsToTemplate, IsProjectUserAuthorized, LocalDateFromString, LocalTimeFromString, Log } from '$lib/utils'
 	import { onDestroy } from 'svelte'
@@ -165,13 +166,12 @@
 		goto(`${base}/${$CurrentProject?.ProjectID}/abstraction/${$AbstractionsSearchResults[index].ID}`)
 	}
 
-	let CreatedFilterOptions: any = {}
 	function HandleUpdateCreatedFilterOptions(value: any) {
-		CreatedFilterOptions = value
-		if (Object.keys(CreatedFilterOptions).length < 1) {
+		$AbstractionsSearchCreatedFilterOptions = value
+		if (Object.keys($AbstractionsSearchCreatedFilterOptions).length < 1) {
 			setupLocalTemplateInfo()
 		}
-		Log(Shared.LogLevel.DEBUG, CURRENT_SECTION, CreatedFilterOptions, 'Updated Filter options')
+		Log(Shared.LogLevel.DEBUG, CURRENT_SECTION, $AbstractionsSearchCreatedFilterOptions, 'Updated Filter options')
 	}
 
 	let selectedFileType = 'csv'
@@ -385,7 +385,7 @@
 			</div>
 		{:else}
 			<div class="divider" />
-			<Table Data={genAbstractionData()} {HandleClickTableRow} {FilterModelTemplate} {CreatedFilterOptions} {HandleUpdateFilterModelTemplate} {HandleUpdateCreatedFilterOptions} {HandleGenerateFileFromData} DataName="Abstractions" />
+			<Table Data={genAbstractionData()} {HandleClickTableRow} {FilterModelTemplate} CreatedFilterOptions={$AbstractionsSearchCreatedFilterOptions} {HandleUpdateFilterModelTemplate} {HandleUpdateCreatedFilterOptions} {HandleGenerateFileFromData} DataName="Abstractions" />
 			<div class="divider" />
 		{/if}
 	</main>

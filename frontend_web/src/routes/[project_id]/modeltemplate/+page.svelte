@@ -26,9 +26,12 @@
 		ModelTemplatesSearchLastUpdatedOnGreaterThan,
 		ModelTemplatesSearchLastUpdatedOnLessThan,
 		ModelTemplatesSearchSortBy,
-		ModelTemplatesSearchSortByOrder
+		ModelTemplatesSearchSortByOrder,
+
+		ModelTemplatesSearchCreatedFilterOptions
+
 	} from '$lib/stores'
-	import { IsProjectUserAuthorized, Log } from '$lib/utils'
+	import { IsProjectUserAuthorized, Log, ResetModelTemplatesStore } from '$lib/utils'
 	import { onDestroy } from 'svelte'
 
 	const CURRENT_SECTION = 'Model Templates'
@@ -176,30 +179,16 @@
 		goto(`${base}/${$CurrentProject?.ProjectID}/modeltemplate/${$ModelTemplatesSearchResults[index].ID}`)
 	}
 
-	let CreatedFilterOptions: any = {}
 	function HandleUpdateCreatedFilterOptions(value: any) {
-		CreatedFilterOptions = value
-		if (Object.keys(CreatedFilterOptions).length < 1) {
+		$ModelTemplatesSearchCreatedFilterOptions = value
+		if (Object.keys($ModelTemplatesSearchCreatedFilterOptions).length < 1) {
 			FilterModelTemplate = JSON.stringify(mtModelTemplate)
 		}
-		Log(Shared.LogLevel.DEBUG, CURRENT_SECTION, CreatedFilterOptions, 'Updated Filter options')
+		Log(Shared.LogLevel.DEBUG, CURRENT_SECTION, $ModelTemplatesSearchCreatedFilterOptions, 'Updated Filter options')
 	}
 
 	let showFilter = false
 	const setShowFilter = (value: boolean) => (showFilter = value)
-	function resetFilter() {
-		$ModelTemplatesSearchCurrentQuery = ''
-		$ModelTemplatesSearchPreviousQuery = ''
-		$ModelTemplatesSearchUseCurrentProject = true
-		$ModelTemplatesSearchCreatedOnGreaterThan = ''
-		$ModelTemplatesSearchCreatedOnLessThan = ''
-		$ModelTemplatesSearchLastUpdatedOnGreaterThan = ''
-		$ModelTemplatesSearchLastUpdatedOnLessThan = ''
-		$ModelTemplatesSearchLimit = 1000
-		$ModelTemplatesSearchOffset = 0
-		$ModelTemplatesSearchSortBy = 'last_updated_on'
-		$ModelTemplatesSearchSortByOrder = 'desc'
-	}
 
 	let quickSearchModelTemplates: IModelTemplate[] = []
 	let performingQuickSearch = false
@@ -365,7 +354,7 @@
 								</div>
 							</span>
 						</section>
-						<button class="btn btn-secondary self-center w-full max-w-[350px] h-fit" on:click={resetFilter}>reset</button>
+						<button class="btn btn-secondary self-center w-full max-w-[350px] h-fit" on:click={ResetModelTemplatesStore}>reset</button>
 					</div>
 				{/if}
 				{#if (searchBarFocused || quickSearchResultsFocused) && (performingQuickSearch || quickSearchModelTemplates.length > 0)}
@@ -411,7 +400,7 @@
 				{HandleClickTableRow}
 				{FilterModelTemplate}
 				DataName="Model Templates"
-				{CreatedFilterOptions}
+				CreatedFilterOptions={$ModelTemplatesSearchCreatedFilterOptions}
 				{HandleUpdateCreatedFilterOptions}
 				{HandleUpdateFilterModelTemplate}
 				IncludeIndividualDataRowCounter={false}

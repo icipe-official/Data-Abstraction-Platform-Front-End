@@ -350,8 +350,8 @@
 					{#each currentCatalogue as cl, index}
 						<section class="form-control">
 							<span class="join">
-								<input class="join-item flex-[9.5] input input-primary w-full" type="text" placeholder="Key..." value={cl.split('~!!~')[0]} on:input={(e) => handleInputCatalogueItem(e.currentTarget.value, undefined, index)} />
-								<input class="join-item flex-[9.5] input input-primary w-full" type="text" placeholder="Value..." value={cl.split('~!!~')[1]} on:input={(e) => handleInputCatalogueItem(undefined, e.currentTarget.value, index)} />
+								<input class="join-item flex-[9.5] input input-primary w-full" type="text" placeholder="Key..." value={cl.split(OPT_SPLIT)[0]} on:input={(e) => handleInputCatalogueItem(e.currentTarget.value, undefined, index)} />
+								<input class="join-item flex-[9.5] input input-primary w-full" type="text" placeholder="Value..." value={cl.split(OPT_SPLIT)[1]} on:input={(e) => handleInputCatalogueItem(undefined, e.currentTarget.value, index)} />
 								<button class="join-item btn btn-regular btn-primary" on:click={() => handleDeleteCatalogueItem(index)}><Icon type="mdi:delete" /></button>
 							</span>
 							{#if currentCatalogueError[index]}
@@ -385,8 +385,8 @@
 					<button
 						class="join-item btn btn-regular btn-primary flex-1"
 						on:click={() => {
-							currentCatalogue = [...currentCatalogue, '~!!~']
-							currentCatalogueError = [...currentCatalogue, null]
+							currentCatalogue = [...currentCatalogue, OPT_SPLIT]
+							currentCatalogueError = [...currentCatalogueError, null]
 						}}
 					>
 						<Icon type="mdi:plus-box" /> list item

@@ -54,6 +54,8 @@ export namespace Shared {
 	}
 }
 
+export const NIL_DATE_TIME = "0001-01-01T00:00:00Z"
+
 export const OPTS_REGEX_SEARCH = /opts=((?:.+?~!!~.+?(?:%!!%|))+?)&#/
 export const OPTS_SPLIT = '%!!%'
 export const OPT_SPLIT = '~!!~'

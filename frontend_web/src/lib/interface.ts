@@ -17,6 +17,22 @@ export interface IFormKeyValue {
 	value: FormField
 }
 
+export interface IProjectStats {
+	ProjectID: string
+	NoOfMembers: number | null
+	NoOfModelTemplates: number | null
+	NoOfCatalogues: number | null
+	NoOfFiles: number | null
+	NoOfAbstractions: number | null
+}
+
+export interface IPlatformStats {
+	NoOfProjects: number | null
+	NoOfModelTemplates: number | null
+	NoOfCatalogues: number | null
+	NoOfAbstractions: number | null
+}
+
 export interface ISearchDirectory extends IDirectory_temp {
 	ProjectsRoles?: IProjectsRoles[]
 	SystemUser?: ISystemUser
@@ -25,6 +41,22 @@ export interface ISearchDirectory extends IDirectory_temp {
 
 export interface IProjectsRoles extends IProject {
 	ProjectRoles: IProjectRole[]
+}
+
+export interface IStorageTypes {
+	ID: string
+	Properties: string
+}
+
+export interface ISearchStorage {
+	ID: string
+	StorageTypeID: string
+	StorageTypeProperties: string
+	Name: string
+	Storage: string
+	IsActive: boolean
+	CreatedOn: string
+	LastUpdatedOn: string
 }
 
 export interface ISearchAbstraction {
@@ -354,6 +386,24 @@ export interface IProject_temp {
 	LastUpdatedOn?: string
 	IsActive?: boolean
 	Directory?: IDirectory
+}
+
+export interface ISearchProject {
+	ID: string
+	Name: string
+	Description: string
+	CreatedOn: string
+	LastUpdatedOn: string
+	IsActive: boolean
+	OwnerDirectoryID: string
+	OwnerDirectoryName: string
+	OwnerDirectoryContacts: string[]
+	Storage:
+		| {
+				StorageID: string
+				StorageName: string
+		  }[]
+		| null
 }
 
 export interface ICurrentProject {

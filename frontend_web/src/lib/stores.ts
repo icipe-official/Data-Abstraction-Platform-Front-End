@@ -1,7 +1,16 @@
 import { type Writable, writable } from 'svelte/store'
-import type { ICatalogue, ICurrentProject, ICurrentUser, IFile, IModelTemplate, IProject, IProjectStorage, ISearchAbstraction, ISearchDirectory } from './interface'
+import type { ICatalogue, ICurrentProject, ICurrentUser, IFile, IModelTemplate, IPlatformStats, IProjectStats, IProjectStorage, ISearchAbstraction, ISearchDirectory, ISearchProject, ISearchStorage, ISearchUser, IStorageTypes } from './interface'
 
-//ui store
+// Project store
+export let CurrentProjectDetails: Writable<ISearchProject|null> = writable(null)
+
+// Platform statistics
+export let PlatformStatistics: Writable<IPlatformStats|null> = writable(null)
+export let PlatformStatisticsLastFetch: Writable<string|null> = writable(null)
+export let ProjectsStatistics: Writable<IProjectStats|null> = writable(null)
+export let ProjectsStatisticsLastFetch: Writable<string|null> = writable(null)
+
+// ui store
 export let Loading: Writable<boolean> = writable(false)
 export let LoadingMessage: Writable<string | null> = writable(null)
 export let ToastMessage: Writable<string | string[] | null> = writable(null)
@@ -11,9 +20,35 @@ export let ToastType: Writable<string | null> = writable(null)
 export let CurrentUser: Writable<ICurrentUser | null> = writable(null)
 export let CurrentProject: Writable<ICurrentProject | null> = writable(null)
 
+// Storage store
+export let StoragesSearchResults: Writable<ISearchStorage[]> = writable([])
+export let StoragesSearchCreatedOnGreaterThan: Writable<string> = writable('')
+export let StoragesSearchCreatedOnLessThan: Writable<string> = writable('')
+export let StoragesSearchLastUpdatedOnGreaterThan: Writable<string> = writable('')
+export let StoragesSearchLastUpdatedOnLessThan: Writable<string> = writable('')
+export let StoragesSearchLimit: Writable<number> = writable(1000)
+export let StoragesSearchOffset: Writable<number> = writable(0)
+export let StoragesSearchSortBy: Writable<string> = writable('last_updated_on')
+export let StoragesSearchSortByOrder: Writable<string> = writable('desc')
+export let StoragesSearchCreatedFilterOptions: Writable<{}> = writable({})
+export let StorageTypesSearchResults: Writable<IStorageTypes[]> = writable([])
+
+// Project store
+export let ProjectsSearchResults: Writable<ISearchProject[]> = writable([])
+export let ProjectsSearchCurrentQuery: Writable<string> = writable('')
+export let ProjectsSearchPreviousQuery: Writable<string> = writable('')
+export let ProjectsSearchCreatedOnGreaterThan: Writable<string> = writable('')
+export let ProjectsSearchCreatedOnLessThan: Writable<string> = writable('')
+export let ProjectsSearchLastUpdatedOnGreaterThan: Writable<string> = writable('')
+export let ProjectsSearchLastUpdatedOnLessThan: Writable<string> = writable('')
+export let ProjectsSearchLimit: Writable<number> = writable(1000)
+export let ProjectsSearchOffset: Writable<number> = writable(0)
+export let ProjectsSearchSortBy: Writable<string> = writable('last_updated_on')
+export let ProjectsSearchSortByOrder: Writable<string> = writable('desc')
+export let ProjectsSearchCreatedFilterOptions: Writable<{}> = writable({})
 
 // Directory store
-export let DirectorySearchResults: Writable<ISearchDirectory[]> = writable([])
+export let DirectorySearchResults: Writable<ISearchUser[]> = writable([])
 export let DirectorySearchCurrentQuery: Writable<string> = writable('')
 export let DirectorySearchPreviousQuery: Writable<string> = writable('')
 export let DirectorySearchCreatedOnGreaterThan: Writable<string> = writable('')
@@ -24,6 +59,7 @@ export let DirectorySearchLimit: Writable<number> = writable(1000)
 export let DirectorySearchOffset: Writable<number> = writable(0)
 export let DirectorySearchSortBy: Writable<string> = writable('last_updated_on')
 export let DirectorySearchSortByOrder: Writable<string> = writable('desc')
+export let DirectorySearchCreatedFilterOptions: Writable<{}> = writable({})
 
 // Catalogues store
 export let CataloguesSearchResults: Writable<ICatalogue[]> = writable([])
@@ -38,6 +74,7 @@ export let CataloguesSearchLimit: Writable<number> = writable(1000)
 export let CataloguesSearchOffset: Writable<number> = writable(0)
 export let CataloguesSearchSortBy: Writable<string> = writable('last_updated_on')
 export let CataloguesSearchSortByOrder: Writable<string> = writable('desc')
+export let CataloguesSearchCreatedFilterOptions: Writable<{}> = writable({})
 
 // Model Templates store
 export let ModelTemplatesSearchResults: Writable<IModelTemplate[]> = writable([])
@@ -52,6 +89,7 @@ export let ModelTemplatesSearchLimit: Writable<number> = writable(1000)
 export let ModelTemplatesSearchOffset: Writable<number> = writable(0)
 export let ModelTemplatesSearchSortBy: Writable<string> = writable('last_updated_on')
 export let ModelTemplatesSearchSortByOrder: Writable<string> = writable('desc')
+export let ModelTemplatesSearchCreatedFilterOptions: Writable<{}> = writable({})
 
 // Files Store
 export let FilesSearchResults: Writable<IFile[]> = writable([])
@@ -65,10 +103,10 @@ export let FilesSearchOffset: Writable<number> = writable(0)
 export let FilesSearchSortBy: Writable<string> = writable('created_on')
 export let FilesSearchSortByOrder: Writable<string> = writable('desc')
 export let FilesSearchFileWithAbstractions: Writable<string> = writable('')
+export let FilesSearchCreatedFilterOptions: Writable<{}> = writable({})
 
 // Search Results Store
 export let SearchResultsClickedIndex: Writable<number | null> = writable(null)
-export let ProjectsSearchResults: Writable<IProject[]> = writable([])
 
 // Available Project Storage Options
 export let ProjectStorage: Writable<IProjectStorage[]> = writable([])
@@ -89,3 +127,4 @@ export let AbstractionsSearchSortBy: Writable<string> = writable('last_updated_o
 export let AbstractionsSearchSortByOrder: Writable<string> = writable('desc')
 export let AbstractionTimeoutActive: Writable<boolean> = writable(true)
 export let AbstractionTimeoutSeconds: Writable<number> = writable(300000)
+export let AbstractionsSearchCreatedFilterOptions: Writable<{}> = writable({})
