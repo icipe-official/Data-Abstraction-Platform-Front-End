@@ -159,7 +159,11 @@
 		$Loading = true
 		$LoadingMessage = 'Deleting abstraction...'
 		try {
-			const fetchResponse = await fetch(`${PUBLIC_API_URL}/abstraction/${data.ID}`, {
+			const deleteUrl = new URL(`${PUBLIC_API_URL}/abstraction/${data.ID}`)
+			if ($CurrentUser?.DirectoryID !== data.AbstractorDirectoryID) {
+				deleteUrl.searchParams.append("pid", $CurrentProject?.ProjectID as string)
+			}
+			const fetchResponse = await fetch(deleteUrl, {
 				method: 'DELETE',
 				credentials: 'include'
 			})
@@ -264,17 +268,21 @@
 				data.IsVerified = data.AbstractionReviews && data.AbstractionReviews.length > 0 ? ((data.AbstractionReviews.map((ar) => (ar.Review ? 1 : 0)) as number[]).reduce((total, current) => total + current) >= ($AbstractionCurrentTemplate?.VerificationQuorum as number) ? true : false) : false
 				if ($SearchResultsClickedIndex !== null) {
 					let abstractionReviewUpdated = false
-					if ($AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews) {
+					if ($AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews !== null) {
+						//@ts-expect-error
 						for (let i = 0; i < $AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews.length; i++) {
+							//@ts-expect-error
 							if ($AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews[i].ReviewerDirectoryID === $CurrentUser?.DirectoryID) {
+								//@ts-expect-error
 								$AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews[i].Review = Review
 								abstractionReviewUpdated = true
 								break
 							}
 						}
 					}
-					if (!abstractionReviewUpdated && $AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews) {
+					if (!abstractionReviewUpdated && $AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews !== null) {
 						$AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews = [
+							//@ts-expect-error
 							...$AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviews,
 							{
 								ReviewerDirectoryID: $CurrentUser?.DirectoryID as string,
@@ -286,8 +294,9 @@
 							}
 						]
 					}
-					if ($AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviewsComments) {
+					if ($AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviewsComments !== null) {
 						$AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviewsComments = [
+							//@ts-expect-error
 							...$AbstractionsSearchResults[$SearchResultsClickedIndex].AbstractionReviewsComments,
 							{
 								ID: $CurrentUser?.DirectoryID as string,

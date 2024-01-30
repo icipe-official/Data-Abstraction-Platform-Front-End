@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { CurrentProject, FilesSearchResults, Loading, LoadingMessage, SearchResultsClickedIndex, ToastMessage, ToastType } from '$lib/stores'
+	import { CurrentProject, CurrentUser, FilesSearchResults, Loading, LoadingMessage, SearchResultsClickedIndex, ToastMessage, ToastType } from '$lib/stores'
 	import { onDestroy } from 'svelte'
 	import type { PageData } from './$types'
 	import { browser } from '$app/environment'
 	import { PUBLIC_API_URL } from '$env/static/public'
 	import Icon from '$lib/components/Icon.svelte'
 	import { FETCH_ERROR, OPTS_SPLIT, Shared } from '$lib/constants'
-	import { LocalDateFromString, LocalTimeFromString, Log } from '$lib/utils'
+	import { IsProjectUserAuthorized, LocalDateFromString, LocalTimeFromString, Log } from '$lib/utils'
 	import { goto } from '$app/navigation'
 	import { base } from '$app/paths'
 
@@ -124,7 +124,9 @@
 								<div><span class="font-bold">Name</span>: {data.Project?.Description}</div>
 							</div>
 							<div class="join">
-								<button class="join-item flex-1 btn btn-secondary" on:click={handleDeleteFile}>delete file</button>
+								{#if IsProjectUserAuthorized([Shared.ProjectRoles.PROJECT_ADMIN]) || data.DirectoryID === $CurrentUser?.DirectoryID}
+									<button class="join-item flex-1 btn btn-secondary" on:click={handleDeleteFile}>delete file</button>
+								{/if}
 								<a class="join-item flex-1 btn btn-primary" href="{PUBLIC_API_URL}/storage/file/{$CurrentProject.ProjectID}/{data.ProjectID}" target="_blank">download file</a>
 							</div>
 						</div>

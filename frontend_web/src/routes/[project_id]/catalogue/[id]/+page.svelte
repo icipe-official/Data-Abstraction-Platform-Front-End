@@ -235,7 +235,11 @@
 		$Loading = true
 		$LoadingMessage = `Delete catalogue ${data.ID}...`
 		try {
-			const fetchResponse = await fetch(`${PUBLIC_API_URL}/catalogue/${data.ID}`, {
+			const deleteUrl = new URL(`${PUBLIC_API_URL}/catalogue/${data.ID}`)
+			if ($CurrentUser?.DirectoryID !== data.ProjectID) {
+				deleteUrl.searchParams.append("pid", $CurrentProject?.ProjectID as string)
+			}
+			const fetchResponse = await fetch(deleteUrl, {
 				credentials: 'include',
 				method: 'DELETE'
 			})
@@ -397,7 +401,7 @@
 					{#if data.ID}
 						<button class="join-item btn btn-regular btn-neutral flex-1 h-fit" on:click={downloadCatalogue}>download</button>
 					{/if}
-					{#if data.DirectoryID === $CurrentUser?.DirectoryID}
+					{#if data.DirectoryID === $CurrentUser?.DirectoryID || IsProjectUserAuthorized([Shared.ProjectRoles.PROJECT_ADMIN])}
 						<button class="join-item btn btn-regular btn-secondary flex-1 h-fit" on:click={handleDeleteCatalogue}>delete</button>
 					{/if}
 					{#if (!data.ID && IsProjectUserAuthorized([Shared.ProjectRoles.CATALOGUE_CREATOR])) || (data.ID && data.DirectoryID === $CurrentUser?.DirectoryID)}

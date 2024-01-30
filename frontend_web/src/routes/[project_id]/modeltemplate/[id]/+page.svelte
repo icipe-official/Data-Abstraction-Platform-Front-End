@@ -267,7 +267,11 @@
 		$Loading = true
 		$LoadingMessage = 'Deleting model template...'
 		try {
-			const fetchResponse = await fetch(`${PUBLIC_API_URL}/modeltemplate/${data.ID}`, {
+			const deleteUrl = new URL(`${PUBLIC_API_URL}/modeltemplate/${data.ID}`)
+			if ($CurrentUser?.DirectoryID !== data.DirectoryID) {
+				deleteUrl.searchParams.append("pid", $CurrentProject?.ProjectID as string)
+			}
+			const fetchResponse = await fetch(deleteUrl, {
 				credentials: 'include',
 				method: 'DELETE'
 			})
@@ -454,12 +458,12 @@
 							{/if}
 						</main>
 						<footer class="flex-[0.5] join">
-							{#if data.DirectoryID === $CurrentUser?.DirectoryID}
+							{#if data.DirectoryID === $CurrentUser?.DirectoryID || IsProjectUserAuthorized([Shared.ProjectRoles.PROJECT_ADMIN])}
 								<button class="join-item btn btn-regular btn-secondary flex-1" on:click={handleDeleteTemplate}>
 									<Icon type="mdi:delete" /> Template
 								</button>
 							{/if}
-							{#if (!data.ID && IsProjectUserAuthorized([Shared.ProjectRoles.CATALOGUE_CREATOR])) || (data.ID && data.DirectoryID === $CurrentUser?.DirectoryID)}
+							{#if (!data.ID && IsProjectUserAuthorized([Shared.ProjectRoles.MODEL_TEMPLATES_CREATOR])) || (data.ID && data.DirectoryID === $CurrentUser?.DirectoryID)}
 								<button class="join-item btn btn-regular btn-primary flex-1" on:click={handleCreateUpdateTemplate}>
 									<Icon type="mdi:content-save" /> Template
 								</button>

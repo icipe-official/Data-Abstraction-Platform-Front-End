@@ -186,8 +186,10 @@
 				>
 					View as table
 				</button>
-				{#if IsProjectUserAuthorized([Shared.ProjectRoles.EDITOR]) && $CurrentUser?.DirectoryID === Abstraction.AbstractorDirectoryID}
+				{#if $CurrentUser?.DirectoryID === Abstraction.AbstractorDirectoryID || IsProjectUserAuthorized([Shared.ProjectRoles.PROJECT_ADMIN])}
 					<button class="flex-1 join-item h-fit w-fit btn btn-secondary" on:click={HandleDeleteAbstraction}>delete</button>
+				{/if}
+				{#if  $CurrentUser?.DirectoryID === Abstraction.AbstractorDirectoryID}
 					<button class="flex-1 join-item h-fit w-fit btn btn-primary" on:click={HandleUpdateAbstraction}>save</button>
 				{/if}
 			</section>
