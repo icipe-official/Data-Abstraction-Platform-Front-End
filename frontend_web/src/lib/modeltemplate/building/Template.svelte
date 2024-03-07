@@ -6,7 +6,6 @@
 	import { GetNextColor2, GetValueInObject, Log, SetValueInObject } from '$lib/utils'
 	import { inview, type Options } from 'svelte-inview'
 	import { fade } from 'svelte/transition'
-	import RepetitiveGroupRendering from './FieldGroupRendering.svelte'
 
 	const CURRENT_SECTION = 'Template'
 
@@ -405,7 +404,7 @@
 			<div class="text-lg text-primary">{currentFieldGroupStruct ? 'Update' : 'Add'} field</div>
 			<button class="btn btn-circle btn-ghost flex justify-center"><Icon type="mdi:close-circle" color={Shared.Colors.PRIMARY} /></button>
 		</header>
-		<main class="overflow-hidden p-2 space-y-2 overflow-x-hidden overflow-y-auto max-h-[70vh]">
+		<main class="p-2 space-y-2 overflow-x-hidden overflow-y-auto max-h-[70vh]">
 			<div class="form-control">
 				<div class="join join-vertical">
 					<input class="join-item input input-primary w-full font-bold" placeholder="Enter field name..." value={currentFieldName} on:input={(e) => handleInputField(e.currentTarget.value, undefined, undefined)} class:input-disabled={currentFieldGroupStruct !== undefined} />

@@ -79,10 +79,10 @@
 			return
 		}
 		$Loading = true
-		$LoadingMessage = "Initializing password reset..."
+		$LoadingMessage = 'Initializing password reset...'
 		try {
 			const fetchResponse = await fetch(`${PUBLIC_API_URL}/iam/request/password_reset`, {
-				method: "POST",
+				method: 'POST',
 				body: JSON.stringify({
 					Email: email
 				})
@@ -172,8 +172,9 @@
 				class="flex-1 link link-hover"
 				on:click={() => {
 					isShowLoginSection = !isShowLoginSection
-				}}>Forgot password?</button
-			>
+				}}
+				>Forgot password?
+			</button>
 		{:else}
 			<button class="btn btn-regular btn-secondary w-[60%] self-center" on:click={handleInitializePasswordReset}>Send password reset mail</button>
 		{/if}

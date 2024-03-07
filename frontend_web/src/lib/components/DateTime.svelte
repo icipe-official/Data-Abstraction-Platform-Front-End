@@ -447,7 +447,7 @@
 												{cd}
 											</button>
 										{:else}
-											<div class="btn-disabled btn-regular h-fit" />
+											<div class="btn-disabled btn-regular h-fit"></div>
 										{/if}
 									{/each}
 								</div>
