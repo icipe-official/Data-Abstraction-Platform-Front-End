@@ -1,0 +1,1393 @@
+<script lang="ts">
+	import { Domain, State, Component, Interfaces, MetadataModel, Utils } from '$lib'
+	import { getContext, onMount } from 'svelte'
+	import type { PageProps } from './$types'
+	import { goto } from '$app/navigation'
+
+	const COMPONENT_NAME = 'abstractions-page'
+
+	let { data }: PageProps = $props()
+
+	let telemetry: Domain.Interfaces.ITelemetry | undefined = $derived.by(() => {
+		return getContext(State.TelemetryContext.value)
+	})
+
+	let windowWidth: number = $state(0)
+
+	onMount(() => {
+		if (data.tokens?.access_token && data.tokens?.refresh_token) {
+			State.Session.tokens = {
+				access_token: data.tokens.access_token,
+				refresh_token: data.tokens.refresh_token
+			}
+		} else {
+			State.Session.tokens = undefined
+		}
+
+		if (data.authentication_headers) {
+			State.AuthenticationHeaders.value = data.authentication_headers
+		} else {
+			State.AuthenticationHeaders.value = undefined
+		}
+	})
+
+	let authContextDirectoryGroupID = $derived(data.directory_group_id)
+
+	let abstractionsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+		if (
+			!State.Session.session?.iam_credential ||
+			!Array.isArray(State.Session.session.iam_credential.id) ||
+			State.Session.session.iam_credential.id.length === 0
+		) {
+			return undefined
+		}
+
+		return new Interfaces.MetadataModels.SearchData(
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
+			new Interfaces.AuthenticatedFetch.Client(true)
+		)
+	})
+	let abstractionsQueryConditions: MetadataModel.QueryConditions[] = $state([])
+	let abstractionsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
+	let abstractionsSearchMetadataModel: any = $state({})
+	let abstractionsSearchResults: any[] = $state([])
+	let abstractionsSearchFilterExcludeIndexes: number[] = $state([])
+	let getDisplayAbstractionsExec: boolean = false
+	async function getDisplayAbstractions() {
+		if (!abstractionsSearch) {
+			throw [401, 'Unauthorized']
+		}
+
+		if (Object.keys(abstractionsSearch.searchmetadatamodel).length === 0) {
+			try {
+				await abstractionsSearch.FetchMetadataModel(authContextDirectoryGroupID, 2, undefined)
+			} catch (e) {
+				const DEFAULT_ERROR = `Get ${Domain.Entities.Abstractions.RepositoryName} metadata-model failed`
+
+				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
+
+				if (Array.isArray(e) && e.length === 2) {
+					throw e
+				} else {
+					throw [500, DEFAULT_ERROR]
+				}
+			}
+		}
+
+		abstractionsSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 50
+
+		abstractionsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(abstractionsSearch.searchmetadatamodel, (property: any) => {
+			if (
+				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
+				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.Abstractions.RepositoryName &&
+				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.Abstractions.FieldColumn.LastUpdatedOn
+			) {
+				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
+			}
+
+			return property
+		})
+
+		abstractionsSearchMetadataModel = abstractionsSearch.searchmetadatamodel
+
+		try {
+			await searchAbstractions()
+			getDisplayAbstractionsExec = true
+		} catch (e) {
+			throw e
+		}
+	}
+	function updateAbstractionsMetadataModel(value: any) {
+		abstractionsSearchMetadataModel = value
+		if (abstractionsSearch) {
+			abstractionsSearch.searchmetadatamodel = abstractionsSearchMetadataModel
+		}
+	}
+	async function searchAbstractions() {
+		if (!abstractionsSearch) {
+			return
+		}
+
+		State.Loading.value = `Searching ${Domain.Entities.Abstractions.RepositoryName}...`
+		try {
+			await abstractionsSearch.Search(
+				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(abstractionsQueryConditions, [abstractionsQuickSearchQueryCondition]),
+				authContextDirectoryGroupID || undefined,
+				authContextDirectoryGroupID || undefined,
+				2,
+				false,
+				false,
+				undefined
+			)
+
+			abstractionsSearchFilterExcludeIndexes = []
+			abstractionsSearchResults = abstractionsSearch.searchresults.data || []
+
+			State.Toast.Type = Domain.Entities.Toast.Type.INFO
+			State.Toast.Message = `${abstractionsSearchResults.length} results returned`
+		} catch (e) {
+			const ERROR = `Search ${Domain.Entities.Abstractions.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+
+			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+			State.Toast.Message = [ERROR]
+			if (Array.isArray(e) && e.length === 2) {
+				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
+				throw e
+			} else {
+				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
+				throw [500, ERROR]
+			}
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+	let showAbstractionsQueryPanel: boolean = $state(false)
+	let selectedAbstractions: number[] = $state([])
+	let showSelectedActions: boolean = $state(false)
+
+	let dataView: Component.View.View = $state('list')
+
+	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
+
+	async function deleteDeactivatesSelectedAbstractions() {
+		const sdata = selectedAbstractions.map((dIndex) => abstractionsSearchResults[dIndex])
+
+		if (sdata.length === 0 || !data.directory_group_id) {
+			return
+		}
+
+		State.Loading.value = `Deleting/Deactivating ${Domain.Entities.Abstractions.RepositoryName}`
+		try {
+			const fetchUrl = new URL(`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}/${Domain.Entities.Url.Action.DELETE}`)
+			fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID, data.directory_group_id)
+			if (authContextDirectoryGroupID) {
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, authContextDirectoryGroupID)
+			}
+			if (State.VerboseResponse.value) {
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.VERBOSE_RESPONSE, `${true}`)
+			}
+
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.DEBUG, State.Loading.value, 'fetchUrl', fetchUrl, 'data', sdata)
+
+			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+				method: 'POST',
+				body: JSON.stringify(sdata)
+			})
+
+			const fetchData = await fetchResponse.json()
+			if (fetchResponse.ok) {
+				State.Toast.Type = !fetchData.failed
+					? Domain.Entities.Toast.Type.SUCCESS
+					: fetchData.successful && fetchData.successful > 0
+						? Domain.Entities.Toast.Type.INFO
+						: Domain.Entities.Toast.Type.ERROR
+				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
+				State.Toast.Message = toastData.message
+				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
+				selectedAbstractions = []
+				showSelectedActions = false
+			} else {
+				handleError(fetchResponse.status, fetchData)
+			}
+		} catch (e) {
+			const ERROR = `Delete/Deactivate ${Domain.Entities.Abstractions.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+			handleError(e, ERROR)
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+
+	function handleError(e: any, defaultError?: string) {
+		State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+		State.Toast.Message = []
+		if (defaultError) {
+			State.Toast.Message.push(defaultError)
+		}
+		if (Array.isArray(e) && e.length === 2) {
+			State.Toast.Message.push(`${e[0]}->${e[1].message}`)
+		} else {
+			State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
+		}
+	}
+
+	let showCreateNewAbstractions: boolean = $state(false)
+
+	let iamGroupAuthorizationSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+		if (
+			!State.Session.session?.iam_credential ||
+			!Array.isArray(State.Session.session.iam_credential.id) ||
+			State.Session.session.iam_credential.id.length === 0
+		) {
+			return undefined
+		}
+
+		return new Interfaces.MetadataModels.SearchData(
+			`${Domain.Entities.Url.ApiUrlPaths.Iam.GroupAuthorizations}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+			`${Domain.Entities.Url.ApiUrlPaths.Iam.GroupAuthorizations}${Domain.Entities.Url.MetadataModelSearchPath}`,
+			new Interfaces.AuthenticatedFetch.Client(true)
+		)
+	})
+	let iamGroupAuthorizationQueryConditions: MetadataModel.QueryConditions[] = $state([])
+	let iamGroupAuthorizationQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
+	let iamGroupAuthorizationFilterAbstractorRoleQueryCondition: MetadataModel.QueryConditions = $state({})
+	let iamGroupAuthorizationSearchMetadataModel: any = $state({})
+	let iamGroupAuthorizationSearchResults: any[] = $state([])
+	let iamGroupAuthorizationSearchFilterExcludeIndexes: number[] = $state([])
+	let getDisplayIamGroupAuthorizationsExec: boolean = false
+	let directoryIDQCKey: Utils.MetadataModel.FieldGroupQueryProperties | undefined
+	async function getDisplayIamGroupAuthorizations() {
+		if (getDisplayIamGroupAuthorizationsExec) {
+			return
+		}
+
+		if (!iamGroupAuthorizationSearch) {
+			throw [401, 'Unauthorized']
+		}
+
+		if (Object.keys(iamGroupAuthorizationSearch.searchmetadatamodel).length === 0) {
+			try {
+				await iamGroupAuthorizationSearch.FetchMetadataModel(authContextDirectoryGroupID, 2, undefined)
+			} catch (e) {
+				const DEFAULT_ERROR = `Get ${Domain.Entities.IamGroupAuthorizations.RepositoryName} metadata-model failed`
+
+				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
+
+				if (Array.isArray(e) && e.length === 2) {
+					throw e
+				} else {
+					throw [500, DEFAULT_ERROR]
+				}
+			}
+		}
+
+		iamGroupAuthorizationSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 20
+
+		iamGroupAuthorizationSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(
+			iamGroupAuthorizationSearch.searchmetadatamodel,
+			(property: any) => {
+				if (
+					property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
+					property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.IamGroupAuthorizations.RepositoryName
+				) {
+					if (
+						property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.IamGroupAuthorizations.FieldColumn.IamCredentialsID
+					) {
+						property[MetadataModel.FgProperties.DATABASE_DISTINCT] = true
+					}
+				}
+
+				return property
+			}
+		)
+
+		iamGroupAuthorizationSearchMetadataModel = iamGroupAuthorizationSearch.searchmetadatamodel
+
+		let deactivatedOnQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			iamGroupAuthorizationSearch.searchmetadatamodel,
+			Domain.Entities.IamGroupAuthorizations.FieldColumn.DeactivatedOn,
+			Domain.Entities.IamGroupAuthorizations.RepositoryName,
+			0
+		)
+
+		if (!deactivatedOnQCKey) {
+			throw [500, `Search does not contain user role information`]
+		}
+
+		directoryIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			iamGroupAuthorizationSearch.searchmetadatamodel,
+			Domain.Entities.IamCredentials.FieldColumn.DirectoryID,
+			Domain.Entities.IamCredentials.RepositoryName,
+			1
+		)
+
+		if (!directoryIDQCKey) {
+			throw [500, `Search does not contain directory information`]
+		}
+
+		const groupAuthRuleIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			iamGroupAuthorizationSearch.searchmetadatamodel,
+			Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID,
+			Domain.Entities.GroupRuleAuthorizations.RepositoryName,
+			1
+		)
+
+		const groupAuthRuleGroupQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			iamGroupAuthorizationSearch.searchmetadatamodel,
+			Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup,
+			Domain.Entities.GroupRuleAuthorizations.RepositoryName,
+			1
+		)
+
+		if (!groupAuthRuleIDQCKey || !groupAuthRuleGroupQCKey) {
+			throw [500, `Search does not contain group roles information`]
+		}
+
+		iamGroupAuthorizationFilterAbstractorRoleQueryCondition = {
+			[deactivatedOnQCKey.qcKey]: {
+				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+					[
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_LESS_THAN,
+							[MetadataModel.FConditionProperties.VALUE]: 0
+						}
+					]
+				]
+			},
+			[directoryIDQCKey.qcKey]: {
+				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+					[
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_GREATER_THAN,
+							[MetadataModel.FConditionProperties.VALUE]: 0
+						}
+					]
+				]
+			},
+			[groupAuthRuleGroupQCKey.qcKey]: {
+				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+					groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+					[
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+							[MetadataModel.FConditionProperties.VALUE]: {
+								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRuleGroup.ABSTRACTIONS
+							}
+						}
+					]
+				]
+			},
+			[groupAuthRuleIDQCKey.qcKey]: {
+				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+					groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+					[
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+							[MetadataModel.FConditionProperties.VALUE]: {
+								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE
+							}
+						},
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+							[MetadataModel.FConditionProperties.VALUE]: {
+								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE_OTHERS
+							}
+						}
+					]
+				]
+			}
+		}
+
+		try {
+			await searchIamGroupAuthorizations()
+			getDisplayIamGroupAuthorizationsExec = true
+		} catch (e) {
+			throw e
+		}
+	}
+	function updateIamGroupAuthorizationsMetadataModel(value: any) {
+		iamGroupAuthorizationSearchMetadataModel = value
+		if (iamGroupAuthorizationSearch) {
+			iamGroupAuthorizationSearch.searchmetadatamodel = iamGroupAuthorizationSearchMetadataModel
+		}
+	}
+	async function searchIamGroupAuthorizations() {
+		if (!iamGroupAuthorizationSearch) {
+			return
+		}
+
+		State.Loading.value = `Searching ${Domain.Entities.IamGroupAuthorizations.RepositoryName}...`
+
+		try {
+			await iamGroupAuthorizationSearch.Search(
+				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(iamGroupAuthorizationQueryConditions, [
+					iamGroupAuthorizationQuickSearchQueryCondition,
+					iamGroupAuthorizationFilterAbstractorRoleQueryCondition
+				]),
+				authContextDirectoryGroupID || undefined,
+				authContextDirectoryGroupID || undefined,
+				2,
+				false,
+				false,
+				undefined
+			)
+
+			iamGroupAuthorizationSearchFilterExcludeIndexes = []
+			iamGroupAuthorizationSearchResults = iamGroupAuthorizationSearch.searchresults.data || []
+
+			State.Toast.Type = Domain.Entities.Toast.Type.INFO
+			State.Toast.Message = `${iamGroupAuthorizationSearchResults.length} results returned`
+		} catch (e) {
+			const ERROR = `Search ${Domain.Entities.IamGroupAuthorizations.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+
+			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+			State.Toast.Message = [ERROR]
+			if (Array.isArray(e) && e.length === 2) {
+				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
+				throw e
+			} else {
+				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
+				throw [500, ERROR]
+			}
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+	let showIamGroupAuthorizationsQueryPanel: boolean = $state(false)
+	let selectedIamGroupAuthorizations: number[] = $state([])
+
+	let uploadFiles: boolean = $state(false)
+
+	let uploadedFiles: Domain.Entities.StorageFiles.Interface[] = $state([])
+	let storageFilesSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+		if (
+			!State.Session.session?.iam_credential ||
+			!Array.isArray(State.Session.session.iam_credential.id) ||
+			State.Session.session.iam_credential.id.length === 0
+		) {
+			return undefined
+		}
+
+		return new Interfaces.MetadataModels.SearchData(
+			`${Domain.Entities.Url.ApiUrlPaths.Storage.Files}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+			`${Domain.Entities.Url.ApiUrlPaths.Storage.Files}${Domain.Entities.Url.MetadataModelSearchPath}`,
+			new Interfaces.AuthenticatedFetch.Client(true)
+		)
+	})
+	let storageFilesQueryConditions: MetadataModel.QueryConditions[] = $state([])
+	let storageFilesQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
+	let storageFilesSearchMetadataModel: any = $state({})
+	let storageFilesSearchResults: any[] = $state([])
+	let storageFilesSearchFilterExcludeIndexes: number[] = $state([])
+	let getDisplayStorageFilesExec: boolean = false
+	async function getDisplayStorageFiles() {
+		if (getDisplayStorageFilesExec) {
+			return
+		}
+
+		if (!storageFilesSearch) {
+			throw [401, 'Unauthorized']
+		}
+
+		if (Object.keys(storageFilesSearch.searchmetadatamodel).length === 0) {
+			try {
+				await storageFilesSearch.FetchMetadataModel(authContextDirectoryGroupID, 2, undefined)
+			} catch (e) {
+				const DEFAULT_ERROR = `Get ${Domain.Entities.StorageFiles.RepositoryName} metadata-model failed`
+
+				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
+
+				if (Array.isArray(e) && e.length === 2) {
+					throw e
+				} else {
+					throw [500, DEFAULT_ERROR]
+				}
+			}
+		}
+
+		storageFilesSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(storageFilesSearch.searchmetadatamodel, (property: any) => {
+			if (
+				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
+				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.StorageFiles.RepositoryName &&
+				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.StorageFiles.FieldColumn.LastUpdatedOn
+			) {
+				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
+			}
+
+			return property
+		})
+
+		storageFilesSearchMetadataModel = storageFilesSearch.searchmetadatamodel
+
+		try {
+			await searchStorageFiles()
+			getDisplayStorageFilesExec = true
+		} catch (e) {
+			throw e
+		}
+	}
+	function updateStorageFilesMetadataModel(value: any) {
+		storageFilesSearchMetadataModel = value
+		if (storageFilesSearch) {
+			storageFilesSearch.searchmetadatamodel = storageFilesSearchMetadataModel
+		}
+	}
+	async function searchStorageFiles() {
+		if (!storageFilesSearch) {
+			return
+		}
+
+		State.Loading.value = `Searching ${Domain.Entities.StorageFiles.RepositoryName}...`
+		try {
+			await storageFilesSearch.Search(
+				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(storageFilesQueryConditions, [storageFilesQuickSearchQueryCondition]),
+				authContextDirectoryGroupID || undefined,
+				authContextDirectoryGroupID || undefined,
+				2,
+				false,
+				false,
+				undefined
+			)
+
+			storageFilesSearchFilterExcludeIndexes = []
+			storageFilesSearchResults = storageFilesSearch.searchresults.data || []
+
+			State.Toast.Type = Domain.Entities.Toast.Type.INFO
+			State.Toast.Message = `${storageFilesSearchResults.length} results returned`
+		} catch (e) {
+			const ERROR = `Search ${Domain.Entities.StorageFiles.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+
+			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+			State.Toast.Message = [ERROR]
+			if (Array.isArray(e) && e.length === 2) {
+				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
+				throw e
+			} else {
+				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
+				throw [500, ERROR]
+			}
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+	let showStorageFilesQueryPanel: boolean = $state(false)
+	let selectedStorageFiles: number[] = $state([])
+
+	let createAbstractionsStep: number = $state(0)
+
+	let createTags: string[] = $state([])
+	let noOfTags: number = $derived(createTags.length)
+	let tagsStart: number = $state(0)
+	let tagsEnd: number = $state(0)
+	function updateTags(index: number, value: string) {
+		if (typeof value === 'string') {
+			if (value.length > 0) {
+				if (index > createTags.length - 1) {
+					for (let i = createTags.length; i <= index; i++) {
+						createTags.push('')
+					}
+				}
+				createTags[index] = value
+			} else {
+				deleteTags(index)
+			}
+		} else {
+			deleteTags(index)
+		}
+	}
+	function deleteTags(index: number) {
+		if (index < createTags.length) {
+			createTags = createTags.filter((_, tIndex) => tIndex !== index)
+		}
+	}
+
+	let createAbstractionsDataValid: boolean = $derived(
+		selectedIamGroupAuthorizations.length > 0 && (uploadedFiles.length > 0 || selectedStorageFiles.length > 0)
+	)
+	async function handleCreateAbstractions() {
+		if (!createAbstractionsDataValid || !data.directory_group_id) {
+			return
+		}
+
+		let directory: Domain.Entities.IamGroupAuthorizations.Interface[] = []
+		for (const dIndex of selectedIamGroupAuthorizations) {
+			if (directoryIDQCKey) {
+				const directoryID = MetadataModel.DatabaseGetColumnFieldValue(
+					JSON.parse(JSON.stringify(iamGroupAuthorizationSearchMetadataModel)),
+					directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+					directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+					iamGroupAuthorizationSearchResults[dIndex]
+				)
+				if (Array.isArray(directoryID) && directoryID.length > 0) {
+					directory.push({
+						id: directoryID
+					})
+				}
+			}
+		}
+
+		if (directory.length === 0) {
+			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+			State.Toast.Message = `Chosen ${Domain.Entities.IamGroupAuthorizations.RepositoryName} not valid`
+			return
+		}
+
+		let storageFiles: Domain.Entities.StorageFiles.Interface[] = []
+		if (uploadedFiles.length > 0) {
+			for (const uf of uploadedFiles) {
+				if (Array.isArray(uf.id) && uf.id.length > 0) {
+					storageFiles.push({
+						id: uf.id
+					})
+				}
+			}
+			storageFiles = uploadedFiles
+		}
+		if (selectedStorageFiles.length > 0) {
+			for (const sfIndex of selectedStorageFiles) {
+				const sf: Domain.Entities.StorageFiles.Interface = storageFilesSearchResults[sfIndex]
+				if (Array.isArray(sf.id) && sf.id.length > 0) {
+					storageFiles.push({
+						id: sf.id
+					})
+				}
+			}
+		}
+
+		if (storageFiles.length === 0) {
+			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+			State.Toast.Message = `Chosen/Uploaded ${Domain.Entities.StorageFiles.RepositoryName} not valid`
+			return
+		}
+
+		let newAbstractions: Domain.Entities.Abstractions.Interface[] = []
+		for (const d of directory) {
+			for (const sf of storageFiles) {
+				let newAbstraction: Domain.Entities.Abstractions.Interface = {
+					abstractions_directory_groups_id: [data.directory_group_id],
+					directory_id: d.id,
+					storage_files_id: sf.id
+				}
+				if (createTags.length > 0) {
+					newAbstraction.tags = JSON.parse(JSON.stringify(createTags))
+				}
+				newAbstractions.push(newAbstraction)
+			}
+		}
+
+		if (newAbstractions.length === 0) {
+			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+			State.Toast.Message = `New ${Domain.Entities.Abstractions.RepositoryName} data not valid`
+			return
+		}
+
+		State.Loading.value = `Creating ${Domain.Entities.Abstractions.RepositoryName}`
+		try {
+			const fetchUrl = new URL(`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}/${Domain.Entities.Url.Action.CREATE}`)
+			fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID, data.directory_group_id)
+			if (authContextDirectoryGroupID) {
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, authContextDirectoryGroupID)
+			}
+			if (State.VerboseResponse.value) {
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.VERBOSE_RESPONSE, `${true}`)
+			}
+
+			telemetry?.Log(
+				COMPONENT_NAME,
+				true,
+				Domain.Entities.Telemetry.LogLevel.DEBUG,
+				State.Loading.value,
+				'fetchUrl',
+				fetchUrl,
+				'data',
+				newAbstractions
+			)
+
+			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+				method: 'POST',
+				body: JSON.stringify(newAbstractions)
+			})
+
+			const fetchData = await fetchResponse.json()
+			if (fetchResponse.ok) {
+				State.Toast.Type = !fetchData.failed
+					? Domain.Entities.Toast.Type.SUCCESS
+					: fetchData.successful && fetchData.successful > 0
+						? Domain.Entities.Toast.Type.INFO
+						: Domain.Entities.Toast.Type.ERROR
+				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
+				State.Toast.Message = toastData.message
+				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
+				selectedIamGroupAuthorizations = []
+				selectedStorageFiles = []
+				showSelectedActions = false
+			} else {
+				handleError(fetchResponse.status, fetchData)
+			}
+		} catch (e) {
+			const ERROR = `Create ${Domain.Entities.Abstractions.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+			handleError(e, ERROR)
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+</script>
+
+<svelte:window bind:innerWidth={windowWidth} />
+
+<div
+	class="flex flex-1 flex-col gap-y-2 overflow-hidden rounded-lg p-2 shadow-md shadow-gray-800 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+		? 'bg-base-300'
+		: 'bg-white'} mb-1"
+>
+	{#await getDisplayAbstractions()}
+		{@render awaitloading()}
+	{:then}
+		{#if showCreateNewAbstractions}
+			<header class="z-[3] flex flex-col gap-y-1">
+				<section class="flex gap-x-1">
+					<button
+						class="btn btn-ghost btn-circle btn-md flex self-center"
+						aria-label="Close Create Abstractions"
+						onclick={() => {
+							showCreateNewAbstractions = false
+						}}
+					>
+						<!--mdi:arrow-back source: https://icon-sets.iconify.design-->
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path fill="var({Utils.Theme.GetColor(State.ThemeColor.value)})" d="M20 11v2H8l5.5 5.5l-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5L8 11z" />
+						</svg>
+					</button>
+					<span class="self-center"> Create Abstractions </span>
+				</section>
+			</header>
+
+			<nav class="flex w-full justify-center rounded-lg p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK ? 'bg-base-100' : 'bg-gray-100'}">
+				<div class="steps z-[2]">
+					<li
+						class="step {createAbstractionsStep >= 0
+							? State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+								? 'step-primary'
+								: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+									? 'step-secondary'
+									: 'step-accent'
+							: ''} overflow-visible"
+					>
+						<button
+							class="link link-hover"
+							onclick={() => {
+								createAbstractionsStep = 0
+							}}
+						>
+							Pick Abstractor(s)
+						</button>
+					</li>
+
+					<li
+						class="step {createAbstractionsStep >= 1
+							? State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+								? 'step-primary'
+								: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+									? 'step-secondary'
+									: 'step-accent'
+							: ''} overflow-visible"
+					>
+						<button
+							class="link link-hover"
+							onclick={() => {
+								createAbstractionsStep = 1
+							}}
+						>
+							Pick or Upload File(s)
+						</button>
+					</li>
+					<li
+						class="step {createAbstractionsStep >= 2
+							? State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+								? 'step-primary'
+								: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+									? 'step-secondary'
+									: 'step-accent'
+							: ''} overflow-visible"
+					>
+						<button
+							class="link link-hover"
+							onclick={() => {
+								createAbstractionsStep = 2
+							}}
+						>
+							Create Abstractions(s)
+						</button>
+					</li>
+				</div>
+			</nav>
+
+			<main
+				class="z-[1] flex flex-[9.5] flex-col gap-y-2 overflow-hidden {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+					? 'bg-base-100'
+					: 'bg-gray-100'} rounded-lg p-2"
+			>
+				{#if createAbstractionsStep === 0}
+					{#await getDisplayIamGroupAuthorizations()}
+						{@render awaitloading()}
+					{:then}
+						<header class="z-[2] flex justify-center">
+							{#await import('$lib/components/View/IamGroupAuthorizations/SearchBar/Component.svelte') then { default: ViewIamGroupAuthorizationsSearchBar }}
+								<div class="max-md:w-full md:w-[60%]">
+									<ViewIamGroupAuthorizationsSearchBar
+										metadatamodel={iamGroupAuthorizationSearchMetadataModel}
+										themecolor={State.ThemeColor.value}
+										theme={State.Theme.value}
+										{telemetry}
+										querycondition={iamGroupAuthorizationQuickSearchQueryCondition}
+										updatequerycondition={(value) => {
+											iamGroupAuthorizationQuickSearchQueryCondition = value
+										}}
+										showquerypanel={() => {
+											showIamGroupAuthorizationsQueryPanel = !showIamGroupAuthorizationsQueryPanel
+										}}
+										search={() => {
+											searchIamGroupAuthorizations()
+										}}
+									></ViewIamGroupAuthorizationsSearchBar>
+								</div>
+							{/await}
+						</header>
+
+						<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+							{#if showIamGroupAuthorizationsQueryPanel}
+								<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+									{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+										<QueryPanel
+											themecolor={State.ThemeColor.value}
+											theme={State.Theme.value}
+											{telemetry}
+											metadatamodel={iamGroupAuthorizationSearchMetadataModel}
+											data={iamGroupAuthorizationSearchResults}
+											queryconditions={iamGroupAuthorizationQueryConditions}
+											filterexcludeindexes={iamGroupAuthorizationSearchFilterExcludeIndexes}
+											updatefilterexcludeindexes={(value) => {
+												iamGroupAuthorizationSearchFilterExcludeIndexes = value
+												State.Toast.Type = Domain.Entities.Toast.Type.INFO
+												State.Toast.Message = `${iamGroupAuthorizationSearchFilterExcludeIndexes.length} local results filtered out`
+											}}
+											updatemetadatamodel={updateIamGroupAuthorizationsMetadataModel}
+											updatequeryconditions={(value) => {
+												iamGroupAuthorizationQueryConditions = value
+											}}
+											hidequerypanel={() => (showIamGroupAuthorizationsQueryPanel = false)}
+										></QueryPanel>
+									{/await}
+								</section>
+							{/if}
+
+							{#if !showIamGroupAuthorizationsQueryPanel || windowWidth > 1000}
+								<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+									<section class="z-[2] flex w-full">
+										{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+											<div class="h-fit w-full flex-1 self-center">
+												<ViewHeaderData
+													title={'Abstractors'}
+													view={dataView}
+													themecolor={State.ThemeColor.value}
+													theme={State.Theme.value}
+													updateview={(value) => (dataView = value)}
+												></ViewHeaderData>
+											</div>
+										{/await}
+									</section>
+
+									<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+										{#await import('$lib/components/View/IamGroupAuthorizations/Data/Component.svelte') then { default: ViewIamGroupAuthorizationsData }}
+											<ViewIamGroupAuthorizationsData
+												metadatamodel={iamGroupAuthorizationSearchMetadataModel}
+												data={iamGroupAuthorizationSearchResults}
+												themecolor={State.ThemeColor.value}
+												theme={State.Theme.value}
+												{telemetry}
+												addclickcolumn={false}
+												addselectcolumn={true}
+												view={dataView}
+												updatemetadatamodel={updateIamGroupAuthorizationsMetadataModel}
+												filterexcludeindexes={iamGroupAuthorizationSearchFilterExcludeIndexes}
+												selecteddataindexes={selectedIamGroupAuthorizations}
+												updateselecteddataindexes={(value) => (selectedIamGroupAuthorizations = value)}
+												viewContext={'iam-credentials'}
+											></ViewIamGroupAuthorizationsData>
+										{/await}
+									</section>
+								</section>
+							{/if}
+						</main>
+					{:catch e}
+						{@render awaiterror(e)}
+					{/await}
+				{:else if createAbstractionsStep === 1}
+					{#await getDisplayStorageFiles()}
+						{@render awaitloading()}
+					{:then}
+						<header role="tablist" class="tabs tabs-border w-full">
+							<button role="tab" class="flex-1 tab{!uploadFiles ? ' tab-active' : ''}" onclick={() => (uploadFiles = false)}>
+								<div class="indicator">
+									{#if selectedStorageFiles.length > 0}
+										<span
+											class="indicator-item badge {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+												? 'badge-primary'
+												: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+													? 'badge-secondary'
+													: 'badge-accent'}"
+										>
+											{selectedStorageFiles.length}
+										</span>
+									{/if}
+									<div class="pr-4">Pick File(s)</div>
+								</div>
+							</button>
+							<button role="tab" class="flex-1 tab{uploadFiles ? ' tab-active' : ''}" onclick={() => (uploadFiles = true)}>
+								<div class="indicator">
+									{#if uploadedFiles.length > 0}
+										<span
+											class="indicator-item badge {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+												? 'badge-primary'
+												: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+													? 'badge-secondary'
+													: 'badge-accent'}"
+										>
+											{uploadedFiles.length}
+										</span>
+									{/if}
+									<div class="pr-4">Upload File(s)</div>
+								</div>
+							</button>
+						</header>
+
+						{#if uploadFiles}
+							<main class="flex w-full flex-1 self-center overflow-hidden p-2 md:max-w-[50%]">
+								{#await import('$lib/components/CreateStorageFiles/Component.svelte') then { default: CreateStorageFiles }}
+									<CreateStorageFiles
+										theme={State.Theme.value}
+										themecolor={State.ThemeColor.value}
+										directorygroupid={data.directory_group_id}
+										{telemetry}
+										onuploadedfiles={(value) => {
+											uploadedFiles = value
+										}}
+									></CreateStorageFiles>
+								{/await}
+							</main>
+						{:else}
+							<header class="z-[2] flex justify-center">
+								{#await import('$lib/components/View/StorageFiles/SearchBar/Component.svelte') then { default: ViewStorageFilesSearchBar }}
+									<div class="max-md:w-full md:w-[60%]">
+										<ViewStorageFilesSearchBar
+											metadatamodel={storageFilesSearchMetadataModel}
+											themecolor={State.ThemeColor.value}
+											theme={State.Theme.value}
+											{telemetry}
+											querycondition={storageFilesQuickSearchQueryCondition}
+											updatequerycondition={(value) => {
+												storageFilesQuickSearchQueryCondition = value
+											}}
+											showquerypanel={() => {
+												showStorageFilesQueryPanel = !showStorageFilesQueryPanel
+											}}
+											search={() => {
+												searchStorageFiles()
+											}}
+										></ViewStorageFilesSearchBar>
+									</div>
+								{/await}
+							</header>
+
+							<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+								{#if showStorageFilesQueryPanel}
+									<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+										{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+											<QueryPanel
+												themecolor={State.ThemeColor.value}
+												theme={State.Theme.value}
+												{telemetry}
+												metadatamodel={storageFilesSearchMetadataModel}
+												data={storageFilesSearchResults}
+												queryconditions={storageFilesQueryConditions}
+												filterexcludeindexes={storageFilesSearchFilterExcludeIndexes}
+												updatefilterexcludeindexes={(value) => {
+													storageFilesSearchFilterExcludeIndexes = value
+													State.Toast.Type = Domain.Entities.Toast.Type.INFO
+													State.Toast.Message = `${storageFilesSearchFilterExcludeIndexes.length} local results filtered out`
+												}}
+												updatemetadatamodel={updateStorageFilesMetadataModel}
+												updatequeryconditions={(value) => {
+													storageFilesQueryConditions = value
+												}}
+												hidequerypanel={() => (showStorageFilesQueryPanel = false)}
+											></QueryPanel>
+										{/await}
+									</section>
+								{/if}
+
+								{#if !showStorageFilesQueryPanel || windowWidth > 1000}
+									<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+										<section class="z-[2] flex w-full">
+											{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+												<div class="h-fit w-full flex-1 self-center">
+													<ViewHeaderData
+														title={'Files'}
+														view={dataView}
+														themecolor={State.ThemeColor.value}
+														theme={State.Theme.value}
+														updateview={(value) => (dataView = value)}
+													></ViewHeaderData>
+												</div>
+											{/await}
+										</section>
+
+										<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+											{#await import('$lib/components/View/StorageFiles/Data/Component.svelte') then { default: ViewStorageFilesData }}
+												<ViewStorageFilesData
+													metadatamodel={storageFilesSearchMetadataModel}
+													data={storageFilesSearchResults}
+													themecolor={State.ThemeColor.value}
+													theme={State.Theme.value}
+													{telemetry}
+													addclickcolumn={false}
+													addselectcolumn={true}
+													view={dataView}
+													updatemetadatamodel={updateStorageFilesMetadataModel}
+													filterexcludeindexes={storageFilesSearchFilterExcludeIndexes}
+													selecteddataindexes={selectedStorageFiles}
+													updateselecteddataindexes={(value) => (selectedStorageFiles = value)}
+													showviewfile={true}
+												></ViewStorageFilesData>
+											{/await}
+										</section>
+									</section>
+								{/if}
+							</main>
+						{/if}
+					{:catch e}
+						{@render awaiterror(e)}
+					{/await}
+				{:else if createAbstractionsStep === 2}
+					<div class="flex flex-1 justify-center">
+						<div class="flex h-fit w-fit flex-col gap-y-16 self-center justify-self-center md:max-w-[60%]">
+							<section
+								class="flex flex-col overflow-hidden rounded-md {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+									? 'border-gray-900 bg-gray-700'
+									: 'border-gray-300 bg-gray-100'} max-md:min-w-[80vw] md:min-w-[50vw]"
+							>
+								<header
+									class="sticky top-0 z-[3] p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+										? 'border-gray-900 bg-gray-700'
+										: 'border-gray-300 bg-gray-100'} flex justify-between"
+								>
+									<span class="self-center">Tags</span>
+
+									<span class="gap-x-2">
+										<button
+											class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+												? 'btn-primary tooltip-primary'
+												: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+													? 'btn-secondary tooltip-secondary'
+													: 'btn-accent tooltip-accent'}"
+											aria-label="Reset Tags"
+											data-tip="Reset tags"
+											onclick={() => {
+												createTags = []
+											}}
+										>
+											<!--mdi:delete source: https://icon-sets.iconify.design-->
+											<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+												<path
+													fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})"
+													d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z"
+												/>
+											</svg>
+										</button>
+
+										<button
+											class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+												? 'btn-primary tooltip-primary'
+												: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+													? 'btn-secondary tooltip-secondary'
+													: 'btn-accent tooltip-accent'}"
+											aria-label="Add New Tag"
+											data-tip="Add new tag"
+											onclick={() => {
+												noOfTags += 1
+											}}
+										>
+											<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
+											<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+												<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
+											</svg>
+										</button>
+									</span>
+								</header>
+
+								<main class="z-[1] flex flex-col gap-y-2 p-2">
+									{#each Utils.Range(tagsStart, Utils.RangeArrayEnd(tagsEnd, noOfTags)) as tgsIndex (tgsIndex)}
+										<label
+											class="input w-full {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+												? 'input-primary'
+												: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+													? 'input-secondary'
+													: 'input-accent'}"
+										>
+											<span class="label">{tgsIndex + 1}</span>
+
+											<input
+												placeholder="Enter tag value..."
+												type="text"
+												value={createTags[tgsIndex]}
+												oninput={(event: Event & { currentTarget: EventTarget & HTMLInputElement }) => {
+													updateTags(tgsIndex, event.currentTarget.value)
+												}}
+											/>
+
+											<span class="label">
+												<button
+													class="btn btn-md btn-ghost"
+													aria-label="Delete tag {tgsIndex}"
+													onclick={() => {
+														deleteTags(tgsIndex)
+														if (tgsIndex > createTags.length - 1) {
+															noOfTags -= 1
+														}
+													}}
+												>
+													<!--mdi:delete source: https://icon-sets.iconify.design-->
+													<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+														<path
+															fill="var({Utils.Theme.GetColor(State.ThemeColor.value)})"
+															d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z"
+														/>
+													</svg>
+												</button>
+											</span>
+										</label>
+									{/each}
+								</main>
+
+								<footer
+									class="sticky bottom-0 z-[2] flex w-full justify-center {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+										? 'border-gray-900 bg-gray-700'
+										: 'border-gray-300 bg-gray-100'} p-2"
+								>
+									<Component.Pagination
+										themecolor={State.ThemeColor.value}
+										lengthofdata={noOfTags}
+										start={tagsStart}
+										end={tagsEnd}
+										updatestart={(n: number) => (tagsStart = n)}
+										updateend={(n: number) => (tagsEnd = n)}
+										contentperpage={5}
+										displayiflengthofdatagreaterthancontentperpage={true}
+									></Component.Pagination>
+								</footer>
+							</section>
+
+							<button
+								class="btn btn-lg {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+									? 'btn-primary'
+									: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+										? 'btn-secondary'
+										: 'btn-accent'} self-center md:max-w-[40%]"
+								aria-label="Create Group Rule Authorizations"
+								onclick={handleCreateAbstractions}
+								disabled={!createAbstractionsDataValid}
+							>
+								Create Abstraction(s)
+							</button>
+						</div>
+					</div>
+				{/if}
+			</main>
+		{:else}
+			<header class="z-[2] flex justify-between gap-x-2">
+				{#await import('$lib/components/View/Abstractions/SearchBar/Component.svelte') then { default: ViewAbstractionsSearchBar }}
+					<div class="max-md:w-full md:w-[60%]">
+						<ViewAbstractionsSearchBar
+							metadatamodel={abstractionsSearchMetadataModel}
+							themecolor={State.ThemeColor.value}
+							theme={State.Theme.value}
+							{telemetry}
+							querycondition={abstractionsQuickSearchQueryCondition}
+							updatequerycondition={(value) => {
+								abstractionsQuickSearchQueryCondition = value
+							}}
+							showquerypanel={() => {
+								showAbstractionsQueryPanel = !showAbstractionsQueryPanel
+							}}
+							search={() => {
+								searchAbstractions()
+							}}
+						></ViewAbstractionsSearchBar>
+					</div>
+				{/await}
+
+				<button
+					class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+						? 'btn-primary tooltip-primary'
+						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+							? 'btn-secondary tooltip-secondary'
+							: 'btn-accent tooltip-accent'}"
+					aria-label="Create New abstraction(s)"
+					data-tip="Create new abstraction(s)"
+					onclick={() => (showCreateNewAbstractions = true)}
+				>
+					<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
+					</svg>
+				</button>
+			</header>
+
+			<div class="divider mb-0 mt-0"></div>
+
+			<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+				{#if showAbstractionsQueryPanel}
+					<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+						{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+							<QueryPanel
+								themecolor={State.ThemeColor.value}
+								theme={State.Theme.value}
+								{telemetry}
+								metadatamodel={abstractionsSearchMetadataModel}
+								data={abstractionsSearchResults}
+								queryconditions={abstractionsQueryConditions}
+								filterexcludeindexes={abstractionsSearchFilterExcludeIndexes}
+								updatefilterexcludeindexes={(value) => {
+									abstractionsSearchFilterExcludeIndexes = value
+									State.Toast.Type = Domain.Entities.Toast.Type.INFO
+									State.Toast.Message = `${abstractionsSearchFilterExcludeIndexes.length} local results filtered out`
+								}}
+								updatemetadatamodel={updateAbstractionsMetadataModel}
+								updatequeryconditions={(value) => {
+									abstractionsQueryConditions = value
+								}}
+								hidequerypanel={() => (showAbstractionsQueryPanel = false)}
+							></QueryPanel>
+						{/await}
+					</section>
+				{/if}
+
+				{#if !showAbstractionsQueryPanel || windowWidth > 1000}
+					<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+						{#if abstractionsSearchResults.length > 0}
+							<section class="z-[2] flex w-full">
+								{#if selectedAbstractions.length > 0}
+									<div class="flex flex-col p-2">
+										<button
+											class="btn btn-md {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+												? 'btn-primary'
+												: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+													? 'btn-secondary'
+													: 'btn-accent'} justify-start gap-x-1"
+											aria-label="Selected Rows Actions"
+											onclick={() => (showSelectedActions = !showSelectedActions)}
+										>
+											<!--mdi:menu source: https://icon-sets.iconify.design-->
+											<svg class="self-center" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+												<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
+											</svg>
+											<span class="self-center">{selectedAbstractions.length} selected</span>
+										</button>
+
+										{#if showSelectedActions}
+											<div class="relative w-full">
+												<div
+													class="absolute w-full {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+														? 'bg-base-200'
+														: 'bg-white'} flex min-w-[250px] flex-col gap-2 rounded-lg p-2 shadow-md shadow-gray-800"
+												>
+													<button
+														class="btn btn-ghost btm-sm tooltip tooltip-right tooltip-primary justify-start"
+														onclick={deleteDeactivatesSelectedAbstractions}
+														data-tip="Deactivating abstraction(s) may prevent them from being used in other parts of the platform."
+													>
+														1 - Delete/Deactivate
+													</button>
+												</div>
+											</div>
+										{/if}
+									</div>
+								{/if}
+
+								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+									<div class="h-fit w-full flex-1 self-center">
+										<ViewHeaderData
+											title={'Abstractions'}
+											view={dataView}
+											themecolor={State.ThemeColor.value}
+											theme={State.Theme.value}
+											updateview={(value) => (dataView = value)}
+										></ViewHeaderData>
+									</div>
+								{/await}
+							</section>
+
+							<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+								{#await import('$lib/components/View/Abstractions/Data/Component.svelte') then { default: ViewAbstractionsData }}
+									<ViewAbstractionsData
+										metadatamodel={abstractionsSearchMetadataModel}
+										data={abstractionsSearchResults}
+										themecolor={State.ThemeColor.value}
+										theme={State.Theme.value}
+										{telemetry}
+										addselectcolumn={true}
+										view={dataView}
+										updatemetadatamodel={updateAbstractionsMetadataModel}
+										filterexcludeindexes={abstractionsSearchFilterExcludeIndexes}
+										selecteddataindexes={selectedAbstractions}
+										updateselecteddataindexes={(value) => (selectedAbstractions = value)}
+										rowclick={(value) => {
+											const abstraction: Domain.Entities.Abstractions.Interface = value
+											if (Array.isArray(abstraction.id) && abstraction.id.length > 0) {
+												goto(
+													State.GetGroupNavigationPath(
+														`${Domain.Entities.Url.WebsitePaths.Abstractions}/${abstraction.id[0]}`,
+														data.directory_group_id
+													)
+												)
+											}
+										}}
+									></ViewAbstractionsData>
+								{/await}
+							</section>
+						{:else}
+							<div
+								class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+									? 'bg-gray-700'
+									: 'bg-gray-200'}"
+							>
+								<span class="flex self-center text-lg"> Create and manage data abstracted from published works. </span>
+							</div>
+						{/if}
+					</section>
+				{/if}
+			</main>
+		{/if}
+	{:catch e}
+		{@render awaiterror(e)}
+	{/await}
+</div>
+
+{#snippet awaiterror(e: any)}
+	{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
+		<div class="flex h-full w-full flex-[9.5] justify-center">
+			<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
+		</div>
+	{/await}
+{/snippet}
+
+{#snippet awaitloading()}
+	<div class="flex h-full w-full flex-[9.5] justify-center">
+		<span class="self-center">
+			<span class="loading text-primary loading-ball loading-md"></span>
+			<span class="loading text-secondary loading-ball loading-lg"></span>
+			<span class="loading text-accent loading-ball loading-xl"></span>
+		</span>
+	</div>
+{/snippet}

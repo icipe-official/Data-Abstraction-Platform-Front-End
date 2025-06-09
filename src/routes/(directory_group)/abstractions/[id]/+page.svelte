@@ -1,0 +1,1315 @@
+<script lang="ts">
+	import { Domain, State, Interfaces, Component, Utils, MetadataModel } from '$lib'
+	import { getContext, onMount, untrack } from 'svelte'
+	import type { PageProps } from './$types'
+	import { Tab, Tabs } from './util'
+	import { goto } from '$app/navigation'
+
+	const COMPONENT_NAME = 'abstraction-page'
+
+	let { data }: PageProps = $props()
+
+	let telemetry: Domain.Interfaces.ITelemetry | undefined = $derived.by(() => {
+		return getContext(State.TelemetryContext.value)
+	})
+
+	onMount(() => {
+		if (data.tokens?.access_token && data.tokens?.refresh_token) {
+			State.Session.tokens = {
+				access_token: data.tokens.access_token,
+				refresh_token: data.tokens.refresh_token
+			}
+		} else {
+			State.Session.tokens = undefined
+		}
+
+		if (data.authentication_headers) {
+			State.AuthenticationHeaders.value = data.authentication_headers
+		} else {
+			State.AuthenticationHeaders.value = undefined
+		}
+
+		;(async () => {
+			datum = await Interfaces.Abstractions.Datum(
+				authedFetch,
+				{
+					metadata_model: JSON.parse(JSON.stringify(data.current_datum?.metadata_model)),
+					datum: JSON.parse(JSON.stringify(data.current_datum?.datum))
+				},
+				telemetry,
+				data.directory_group_id
+			)
+
+			if (data.current_datum?.datum) {
+				datum.previousDatum = JSON.parse(JSON.stringify(data.current_datum.datum))
+			}
+		})()
+	})
+
+	let verboseResponse = $derived(State.VerboseResponse.value)
+	let authContextDirectoryGroupID = $derived(data.directory_group_id)
+
+	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
+
+	//@ts-expect-error
+	let datum: Domain.Interfaces.Abstractions.Datum = $state({})
+	$effect(() => {
+		if (data.current_datum?.datum) {
+			untrack(() => {
+				datum.previousDatum = JSON.parse(JSON.stringify(data.current_datum!.datum))
+			})
+		}
+	})
+
+	let noOfTags: number = $derived(Array.isArray(datum.tags) ? datum.tags.length : 0)
+
+	let tagsStart: number = $state(0)
+
+	let tagsEnd: number = $state(0)
+
+	let leftTabs: Tab[] = $state([Tab.INFO])
+	let currentLeftTabIndex: number = $state(0)
+	let rightTabs: Tab[] = $state([Tab.FILE])
+	let currentRightTabIndex: number = $state(0)
+
+	let windowWidth: number = $state(0)
+
+	let datumView: Component.View.View = $state('simple')
+
+	let collapseRightSection: boolean = $state(false)
+
+	let showSectionID: string = $state('')
+
+	function handleError(e: any, defaultError?: string) {
+		State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+		State.Toast.Message = []
+		if (defaultError) {
+			State.Toast.Message.push(defaultError)
+		}
+		if (Array.isArray(e) && e.length === 2) {
+			State.Toast.Message.push(`${e[0]}->${e[1].message}`)
+		} else {
+			State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
+		}
+	}
+
+	let abstractionsReviewsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+		if (
+			!State.Session.session?.iam_credential ||
+			!Array.isArray(State.Session.session.iam_credential.id) ||
+			State.Session.session.iam_credential.id.length === 0
+		) {
+			return undefined
+		}
+
+		return new Interfaces.MetadataModels.SearchData(
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
+			new Interfaces.AuthenticatedFetch.Client(true)
+		)
+	})
+	let abstractionsReviewsQueryConditions: MetadataModel.QueryConditions[] = $state([])
+	let abstractionsReviewsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
+	let abstractionsReviewsCurrentAbstractionQueryCondition: MetadataModel.QueryConditions = $state({})
+	let abstractionsReviewsSearchMetadataModel: any = $state({})
+	let abstractionsReviewsSearchResults: any[] = $state([])
+	let abstractionsReviewsSearchFilterExcludeIndexes: number[] = $state([])
+	async function getDisplayAbstractionsReviews() {
+		if (!abstractionsReviewsSearch || !datum.id) {
+			throw [401, 'Unauthorized']
+		}
+
+		if (Object.keys(abstractionsReviewsSearch.searchmetadatamodel).length === 0) {
+			try {
+				await abstractionsReviewsSearch.FetchMetadataModel(authContextDirectoryGroupID, 1, undefined)
+			} catch (e) {
+				const DEFAULT_ERROR = `Get ${Domain.Entities.AbstractionsReviews.RepositoryName} metadata-model failed`
+
+				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
+
+				if (Array.isArray(e) && e.length === 2) {
+					throw e
+				} else {
+					throw [500, DEFAULT_ERROR]
+				}
+			}
+		} else {
+			return
+		}
+
+		abstractionsReviewsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(abstractionsReviewsSearch.searchmetadatamodel, (property: any) => {
+			if (
+				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
+				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.AbstractionsReviews.RepositoryName &&
+				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.AbstractionsReviews.FieldColumn.LastUpdatedOn
+			) {
+				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
+			}
+
+			return property
+		})
+
+		abstractionsReviewsSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 50
+
+		abstractionsReviewsSearchMetadataModel = abstractionsReviewsSearch.searchmetadatamodel
+
+		const abstractionIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			abstractionsReviewsSearchMetadataModel,
+			Domain.Entities.AbstractionsReviews.FieldColumn.AbstractionsID,
+			abstractionsReviewsSearchMetadataModel[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME],
+			abstractionsReviewsSearchMetadataModel[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH]
+		)
+
+		if (!abstractionIDQCKey) {
+			throw [500, `abstractionIDQCKey not valid`]
+		}
+
+		abstractionsReviewsCurrentAbstractionQueryCondition = {
+			[abstractionIDQCKey.qcKey]: {
+				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: abstractionIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: abstractionIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+					[
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+							[MetadataModel.FConditionProperties.VALUE]: {
+								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+								[MetadataModel.FSelectProperties.VALUE]: datum.id
+							}
+						}
+					]
+				]
+			}
+		}
+
+		try {
+			await searchAbstractionsReviews()
+		} catch (e) {
+			throw e
+		}
+	}
+	function updateAbstractionsReviewsMetadataModel(value: any) {
+		abstractionsReviewsSearchMetadataModel = value
+		if (abstractionsReviewsSearch) {
+			abstractionsReviewsSearch.searchmetadatamodel = abstractionsReviewsSearchMetadataModel
+		}
+	}
+	async function searchAbstractionsReviews() {
+		if (!abstractionsReviewsSearch) {
+			return
+		}
+
+		State.Loading.value = `Searching ${Domain.Entities.AbstractionsReviews.RepositoryName}...`
+		try {
+			await abstractionsReviewsSearch.Search(
+				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(abstractionsReviewsQueryConditions, [
+					abstractionsReviewsQuickSearchQueryCondition,
+					abstractionsReviewsCurrentAbstractionQueryCondition
+				]),
+				authContextDirectoryGroupID || data.directory_group_id,
+				authContextDirectoryGroupID || data.directory_group_id,
+				1,
+				false,
+				false,
+				undefined
+			)
+
+			abstractionsReviewsSearchFilterExcludeIndexes = []
+			abstractionsReviewsSearchResults = abstractionsReviewsSearch.searchresults.data || []
+
+			State.Toast.Type = Domain.Entities.Toast.Type.INFO
+			State.Toast.Message = `${abstractionsReviewsSearchResults.length} results returned`
+		} catch (e) {
+			const ERROR = `Search ${Domain.Entities.AbstractionsReviews.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+
+			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+			State.Toast.Message = [ERROR]
+			if (Array.isArray(e) && e.length === 2) {
+				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
+				throw e
+			} else {
+				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
+				throw [500, ERROR]
+			}
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+	let dataView: Component.View.View = $state('list')
+	let showAbstractionsReviewsQueryPanel: boolean = $state(false)
+
+	async function reviewAbstraction(pass: boolean) {
+		if (!Array.isArray(State.Session.session?.iam_credential?.directory_id) || !datum.id || !data.directory_group_id) {
+			return
+		}
+
+		let abstractionReview: Domain.Entities.AbstractionsReviews.Interface = {
+			abstractions_id: [datum.id],
+			directory_id: State.Session.session.iam_credential.directory_id,
+			review_pass: [pass]
+		}
+
+		State.Loading.value = `Updating ${Domain.Entities.AbstractionsReviews.RepositoryName}`
+		try {
+			const fetchUrl = new URL(`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}/${Domain.Entities.Url.Action.UPSERT}`)
+			fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID, data.directory_group_id)
+			if (authContextDirectoryGroupID) {
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, authContextDirectoryGroupID)
+			}
+			if (State.VerboseResponse.value) {
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.VERBOSE_RESPONSE, `${true}`)
+			}
+
+			telemetry?.Log(
+				COMPONENT_NAME,
+				true,
+				Domain.Entities.Telemetry.LogLevel.DEBUG,
+				State.Loading.value,
+				'fetchUrl',
+				fetchUrl,
+				'data',
+				abstractionReview
+			)
+
+			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+				method: 'POST',
+				body: JSON.stringify([abstractionReview])
+			})
+
+			const fetchData = await fetchResponse.json()
+			if (fetchResponse.ok) {
+				State.Toast.Type = !fetchData.failed
+					? Domain.Entities.Toast.Type.SUCCESS
+					: fetchData.successful && fetchData.successful > 0
+						? Domain.Entities.Toast.Type.INFO
+						: Domain.Entities.Toast.Type.ERROR
+				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
+				State.Toast.Message = toastData.message
+				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
+				searchAbstractionsReviews()
+			} else {
+				handleError(fetchResponse.status, fetchData)
+			}
+		} catch (e) {
+			const ERROR = `Update ${Domain.Entities.AbstractionsReviews.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+			handleError(e, ERROR)
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+
+	let abstractionsReviewsCommentsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+		if (
+			!State.Session.session?.iam_credential ||
+			!Array.isArray(State.Session.session.iam_credential.id) ||
+			State.Session.session.iam_credential.id.length === 0
+		) {
+			return undefined
+		}
+
+		return new Interfaces.MetadataModels.SearchData(
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Comments}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Comments}${Domain.Entities.Url.MetadataModelSearchPath}`,
+			new Interfaces.AuthenticatedFetch.Client(true)
+		)
+	})
+
+	let abstractionsReviewsCommentsQueryConditions: MetadataModel.QueryConditions[] = $state([])
+	let abstracionsReviewsCommentsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
+	let abstractionsReviewsCommentsSearchMetadataModel: any = $state({})
+	let abstractionsReviewsCommentsSearchResults: any[] = $state([])
+	let abstractionsReviewsCommentsSearchFilterExcludeIndexes: number[] = $state([])
+
+	async function getDisplayAbstractionsReviewsComments() {
+		if (!abstractionsReviewsCommentsSearch) {
+			throw [401, 'Unauthorized']
+		}
+
+		if (Object.keys(abstractionsReviewsCommentsSearch.searchmetadatamodel).length === 0) {
+			try {
+				await abstractionsReviewsCommentsSearch.FetchMetadataModel(authContextDirectoryGroupID, 1, undefined)
+			} catch (e) {
+				const DEFAULT_ERROR = `Get ${Domain.Entities.AbstractionsReviewsComments.RepositoryName} metadata-model failed`
+
+				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
+
+				if (Array.isArray(e) && e.length === 2) {
+					throw e
+				} else {
+					throw [500, DEFAULT_ERROR]
+				}
+			}
+		} else {
+			return
+		}
+
+		abstractionsReviewsCommentsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(
+			abstractionsReviewsCommentsSearch.searchmetadatamodel,
+			(property: any) => {
+				if (
+					property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
+					property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.AbstractionsReviewsComments.RepositoryName &&
+					property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.AbstractionsReviewsComments.FieldColumn.CreatedOn
+				) {
+					property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
+				}
+
+				return property
+			}
+		)
+
+		abstractionsReviewsCommentsSearchMetadataModel = abstractionsReviewsCommentsSearch.searchmetadatamodel
+
+		const abstractionIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			abstractionsReviewsCommentsSearchMetadataModel,
+			Domain.Entities.AbstractionsReviewsComments.FieldColumn.AbstractionsID,
+			abstractionsReviewsCommentsSearchMetadataModel[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME],
+			abstractionsReviewsCommentsSearchMetadataModel[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH]
+		)
+
+		if (!abstractionIDQCKey) {
+			throw [500, `abstractionIDQCKey not valid`]
+		}
+
+		abstractionsReviewsCurrentAbstractionQueryCondition = {
+			[abstractionIDQCKey.qcKey]: {
+				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: abstractionIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: abstractionIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+					[
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+							[MetadataModel.FConditionProperties.VALUE]: {
+								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+								[MetadataModel.FSelectProperties.VALUE]: datum.id
+							}
+						}
+					]
+				]
+			}
+		}
+		try {
+			await searchAbstractionsReviewsComments()
+		} catch (e) {
+			throw e
+		}
+	}
+
+	function updateAbstractionsReviewsCommentsMetadataModel(value: any) {
+		abstractionsReviewsCommentsSearchMetadataModel = value
+		if (abstractionsReviewsCommentsSearch) {
+			abstractionsReviewsCommentsSearch.searchmetadatamodel = abstractionsReviewsCommentsSearchMetadataModel
+		}
+	}
+
+	async function searchAbstractionsReviewsComments() {
+		if (!abstractionsReviewsCommentsSearch) {
+			return
+		}
+
+		State.Loading.value = `Searching ${Domain.Entities.AbstractionsReviewsComments.RepositoryName}...`
+		try {
+			await abstractionsReviewsCommentsSearch.Search(
+				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(abstractionsReviewsCommentsQueryConditions, [
+					abstractionsReviewsQuickSearchQueryCondition
+				]),
+				authContextDirectoryGroupID || data.directory_group_id,
+				authContextDirectoryGroupID || data.directory_group_id,
+				1,
+				false,
+				false,
+				undefined
+			)
+
+			abstractionsReviewsCommentsSearchFilterExcludeIndexes = []
+			abstractionsReviewsCommentsSearchResults = abstractionsReviewsCommentsSearch.searchresults.data || []
+
+			State.Toast.Type = Domain.Entities.Toast.Type.INFO
+			State.Toast.Message = `${abstractionsReviewsCommentsSearchResults.length} results returned`
+		} catch (e) {
+			const ERROR = `Search ${Domain.Entities.AbstractionsReviewsComments.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+
+			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+			State.Toast.Message = [ERROR]
+			if (Array.isArray(e) && e.length === 2) {
+				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
+				throw e
+			} else {
+				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
+				throw [500, ERROR]
+			}
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+
+	let showAbstractionsReviewsCommentsQueryPanel: boolean = $state(false)
+
+	let comment: string = $state('')
+	async function reviewCommentAbstraction() {
+		if (!Array.isArray(State.Session.session?.iam_credential?.directory_id) || !datum.id || !data.directory_group_id || comment.length === 0) {
+			return
+		}
+
+		let abstractionReviewComment: Domain.Entities.AbstractionsReviewsComments.Interface = {
+			abstractions_id: [datum.id],
+			directory_id: State.Session.session.iam_credential.directory_id,
+			comment: [comment]
+		}
+
+		State.Loading.value = `Creating ${Domain.Entities.AbstractionsReviewsComments.RepositoryName}`
+		try {
+			const fetchUrl = new URL(`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Comments}/${Domain.Entities.Url.Action.CREATE}`)
+			fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID, data.directory_group_id)
+			if (authContextDirectoryGroupID) {
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, authContextDirectoryGroupID)
+			}
+			if (State.VerboseResponse.value) {
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.VERBOSE_RESPONSE, `${true}`)
+			}
+
+			telemetry?.Log(
+				COMPONENT_NAME,
+				true,
+				Domain.Entities.Telemetry.LogLevel.DEBUG,
+				State.Loading.value,
+				'fetchUrl',
+				fetchUrl,
+				'data',
+				abstractionReviewComment
+			)
+
+			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+				method: 'POST',
+				body: JSON.stringify([abstractionReviewComment])
+			})
+
+			const fetchData = await fetchResponse.json()
+			if (fetchResponse.ok) {
+				State.Toast.Type = !fetchData.failed
+					? Domain.Entities.Toast.Type.SUCCESS
+					: fetchData.successful && fetchData.successful > 0
+						? Domain.Entities.Toast.Type.INFO
+						: Domain.Entities.Toast.Type.ERROR
+				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
+				State.Toast.Message = toastData.message
+				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
+				searchAbstractionsReviewsComments()
+				comment = ''
+			} else {
+				handleError(fetchResponse.status, fetchData)
+			}
+		} catch (e) {
+			const ERROR = `Create ${Domain.Entities.AbstractionsReviewsComments.RepositoryName} failed`
+			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+			handleError(e, ERROR)
+		} finally {
+			State.Loading.value = undefined
+		}
+	}
+</script>
+
+<svelte:window bind:innerWidth={windowWidth} />
+
+<div class="flex h-full flex-1 gap-x-2 self-center overflow-hidden pb-1">
+	<section
+		id="left-section"
+		class="flex flex-1 flex-col gap-y-1 overflow-hidden rounded-md shadow-md shadow-gray-800 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+			? 'bg-base-200'
+			: 'bg-white'}"
+	>
+		<header class="z-[2] flex justify-between p-2">
+			{@render tabheader(true)}
+
+			<section class="flex">
+				{@render addtab(true)}
+
+				{#if collapseRightSection}
+					<button
+						class="btn btn-md btn-ghost tooltip tooltip-left {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+							? 'tooltip-primary'
+							: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+								? 'tooltip-secondary'
+								: 'tooltip-accent'}"
+						onclick={() => (collapseRightSection = false)}
+						data-tip="Expand Right Section"
+					>
+						<!--mdi:arrow-split-vertical source: https://icon-sets.iconify.design-->
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path
+								fill={State.Theme.value === Domain.Entities.Theme.Theme.DARK ? 'white' : 'black'}
+								d="M18 16v-3h-3v9h-2V2h2v9h3V8l4 4zM2 12l4 4v-3h3v9h2V2H9v9H6V8z"
+							/>
+						</svg>
+					</button>
+				{/if}
+			</section>
+		</header>
+
+		{@render tabwindow(leftTabs[currentLeftTabIndex])}
+	</section>
+
+	{#if windowWidth > 1000 && !collapseRightSection}
+		<section
+			id="left-section"
+			class="flex flex-1 flex-col gap-y-1 overflow-hidden rounded-md shadow-md shadow-gray-800 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+				? 'bg-base-200'
+				: 'bg-white'}"
+		>
+			<header class="z-[2] flex justify-between p-2">
+				{@render tabheader(false)}
+
+				<section class="flex">
+					{@render addtab(false)}
+
+					{#if !collapseRightSection}
+						<button
+							class="btn btn-md btn-ghost tooltip tooltip-left {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+								? 'tooltip-primary'
+								: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+									? 'tooltip-secondary'
+									: 'tooltip-accent'}"
+							data-tip="Collapse Right Section"
+							onclick={() => (collapseRightSection = true)}
+						>
+							<!--mdi:arrow-horizontal-collapse source: https://icon-sets.iconify.design-->
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+								<path
+									fill={State.Theme.value === Domain.Entities.Theme.Theme.DARK ? 'white' : 'black'}
+									d="M19 16v-3h4v-2h-4V8l-4 4zM5 8v3H1v2h4v3l4-4zm6 12h2V4h-2z"
+								/>
+							</svg>
+						</button>
+					{/if}
+				</section>
+			</header>
+
+			{@render tabwindow(rightTabs[currentRightTabIndex])}
+		</section>
+	{/if}
+</div>
+
+{#snippet addtab(left: boolean)}
+	{@const sectionID = `${left ? 'left' : 'right'}-tab-menu`}
+	<div class="flex flex-col gap-y-1">
+		<button
+			class="btn btn-md tooltip tooltip-left {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+				? 'tooltip-primary'
+				: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+					? 'tooltip-secondary'
+					: 'tooltip-accent'}"
+			onclick={() => {
+				showSectionID = showSectionID === sectionID ? '' : sectionID
+			}}
+			data-tip="Add new tab"
+		>
+			<!--mdi:tab-plus source: https://icon-sets.iconify.design-->
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+				<path
+					fill={State.Theme.value === Domain.Entities.Theme.Theme.DARK ? 'white' : 'black'}
+					d="M3 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 2h10v4h8v10H3zm7 5v3H7v2h3v3h2v-3h3v-2h-3v-3z"
+				/>
+			</svg>
+		</button>
+
+		<div class="relative h-0">
+			{#if showSectionID === sectionID}
+				<div
+					class="rounded-md shadow-md shadow-gray-800 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+						? 'bg-base-100'
+						: 'bg-white'} absolute right-0 top-0 flex w-fit min-w-[200px] flex-col gap-y-2 p-1"
+				>
+					{#each Tabs as tb}
+						<button
+							class="btn btn-md btn-ghost"
+							aria-label={tb}
+							onclick={() => {
+								if (left) {
+									leftTabs.push(tb)
+									currentLeftTabIndex = leftTabs.length - 1
+								} else {
+									rightTabs.push(tb)
+									currentRightTabIndex = rightTabs.length - 1
+								}
+							}}
+						>
+							{tb}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+{/snippet}
+
+{#snippet tabheader(left: boolean)}
+	<section class="flex-1">
+		<span role="tablist" class="tabs tabs-lift flex-1">
+			{#if left}
+				{#each leftTabs as lt, lIndex}
+					<span role="tab" class="tab flex flex-1 {lIndex === currentLeftTabIndex ? 'tab-active' : ''}">
+						<button
+							class="btn btn-ghost btn-md flex-1"
+							onclick={() => {
+								currentLeftTabIndex = lIndex
+							}}
+						>
+							{lt}
+						</button>
+
+						<button
+							class="btn btn-ghost {lIndex === currentLeftTabIndex ? 'tab-active' : ''}"
+							onclick={() => {
+								leftTabs = leftTabs.filter((_, i) => lIndex !== i)
+								if (currentLeftTabIndex >= leftTabs.length - 1) {
+									currentLeftTabIndex = leftTabs.length - 1
+								}
+							}}
+						>
+							<!--mdi:close-circle source: https://icon-sets.iconify.design-->
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+								<path
+									fill={State.Theme.value === Domain.Entities.Theme.Theme.DARK ? 'white' : 'black'}
+									d="M12 2c5.53 0 10 4.47 10 10s-4.47 10-10 10S2 17.53 2 12S6.47 2 12 2m3.59 5L12 10.59L8.41 7L7 8.41L10.59 12L7 15.59L8.41 17L12 13.41L15.59 17L17 15.59L13.41 12L17 8.41z"
+								/>
+							</svg>
+						</button>
+					</span>
+				{/each}
+			{:else}
+				{#each rightTabs as rt, rIndex}
+					<span role="tab" class="tab flex flex-1 {rIndex === currentRightTabIndex ? 'tab-active' : ''}">
+						<button
+							class="btn btn-ghost btn-md flex-1"
+							onclick={() => {
+								currentRightTabIndex = rIndex
+							}}
+						>
+							{rt}
+						</button>
+
+						<button
+							class="btn btn-ghost {rIndex === currentRightTabIndex ? 'tab-active' : ''}"
+							onclick={() => {
+								rightTabs = rightTabs.filter((_, i) => rIndex !== i)
+								if (currentRightTabIndex >= rightTabs.length - 1) {
+									currentRightTabIndex = rightTabs.length - 1
+								}
+							}}
+						>
+							<!--mdi:close-circle source: https://icon-sets.iconify.design-->
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+								<path
+									fill={State.Theme.value === Domain.Entities.Theme.Theme.DARK ? 'white' : 'black'}
+									d="M12 2c5.53 0 10 4.47 10 10s-4.47 10-10 10S2 17.53 2 12S6.47 2 12 2m3.59 5L12 10.59L8.41 7L7 8.41L10.59 12L7 15.59L8.41 17L12 13.41L15.59 17L17 15.59L13.41 12L17 8.41z"
+								/>
+							</svg>
+						</button>
+					</span>
+				{/each}
+			{/if}
+		</span>
+	</section>
+{/snippet}
+
+{#snippet tabwindow(tab: Tab)}
+	{#if tab === Tab.INFO}
+		<main class="z-[1] flex flex-1 flex-col overflow-hidden p-2">
+			{#await import('$lib/components/View/Header/Datum/Component.svelte') then { default: ViewHeaderDatum }}
+				<ViewHeaderDatum
+					title="Abstraction Info"
+					view={datumView}
+					updateview={(value) => (datumView = value)}
+					theme={State.Theme.value}
+					themecolor={State.ThemeColor.value}
+				></ViewHeaderDatum>
+			{/await}
+			{#await import('$lib/components/View/Abstractions/Datum/Component.svelte') then { default: Datum }}
+				<Datum
+					metadatamodel={data.current_datum?.metadata_model}
+					data={data.current_datum?.datum}
+					theme={State.Theme.value}
+					themecolor={State.ThemeColor.value}
+					{telemetry}
+					view={datumView}
+				></Datum>
+			{/await}
+		</main>
+	{:else if tab === Tab.EDIT_INFO}
+		<main class="z-[1] flex flex-1 flex-col gap-y-4 overflow-auto">
+			<fieldset
+				class="fieldset {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+					? 'border-gray-900 bg-gray-700'
+					: 'border-gray-300 bg-gray-100'} rounded-box w-full border p-4"
+			>
+				<legend class="fieldset-legend flex gap-x-2">
+					<div class="text-md h-fit self-center">Completed?</div>
+				</legend>
+
+				<p class="text-sm">Allows reviewers to determine whether they should review your abstraction.</p>
+
+				<input
+					class="checkbox {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+						? 'checkbox-primary'
+						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+							? 'checkbox-secondary'
+							: 'checkbox-accent'}"
+					type="checkbox"
+					bind:checked={datum.completed}
+				/>
+			</fieldset>
+
+			<section
+				class="flex flex-col rounded-md {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+					? 'border-gray-900 bg-gray-700'
+					: 'border-gray-300 bg-gray-100'}"
+			>
+				<header
+					class="sticky top-0 z-[3] p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+						? 'border-gray-900 bg-gray-700'
+						: 'border-gray-300 bg-gray-100'} flex justify-between"
+				>
+					<span class="self-center">Tags</span>
+
+					<span class="gap-x-2">
+						<button
+							class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+								? 'btn-primary tooltip-primary'
+								: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+									? 'btn-secondary tooltip-secondary'
+									: 'btn-accent tooltip-accent'}"
+							aria-label="Reset Tags"
+							data-tip="Reset tags"
+							onclick={() => {
+								datum.tags = []
+							}}
+						>
+							<!--mdi:delete source: https://icon-sets.iconify.design-->
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+								<path
+									fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})"
+									d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z"
+								/>
+							</svg>
+						</button>
+
+						<button
+							class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+								? 'btn-primary tooltip-primary'
+								: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+									? 'btn-secondary tooltip-secondary'
+									: 'btn-accent tooltip-accent'}"
+							aria-label="Add New Tag"
+							data-tip="Add new tag"
+							onclick={() => {
+								noOfTags += 1
+							}}
+						>
+							<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+								<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
+							</svg>
+						</button>
+					</span>
+				</header>
+
+				<main class="z-[1] flex flex-col gap-y-2 p-2">
+					{#each Utils.Range(tagsStart, Utils.RangeArrayEnd(tagsEnd, noOfTags)) as tgsIndex (tgsIndex)}
+						<label
+							class="input w-full {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+								? 'input-primary'
+								: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+									? 'input-secondary'
+									: 'input-accent'}"
+						>
+							<span class="label">{tgsIndex + 1}</span>
+
+							<input
+								placeholder="Enter tag value..."
+								type="text"
+								value={datum.tags[tgsIndex]}
+								oninput={(event: Event & { currentTarget: EventTarget & HTMLInputElement }) => {
+									datum.updateTags(tgsIndex, event.currentTarget.value)
+								}}
+							/>
+
+							<span class="label">
+								<button
+									class="btn btn-md btn-ghost"
+									aria-label="Delete tag {tgsIndex}"
+									onclick={() => {
+										datum.deleteTags(tgsIndex)
+										if (tgsIndex > datum.tags.length - 1) {
+											noOfTags -= 1
+										}
+									}}
+								>
+									<!--mdi:delete source: https://icon-sets.iconify.design-->
+									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+										<path
+											fill="var({Utils.Theme.GetColor(State.ThemeColor.value)})"
+											d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z"
+										/>
+									</svg>
+								</button>
+							</span>
+						</label>
+					{/each}
+				</main>
+
+				<footer
+					class="sticky bottom-0 z-[2] flex w-full justify-center {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+						? 'border-gray-900 bg-gray-700'
+						: 'border-gray-300 bg-gray-100'}"
+				>
+					<Component.Pagination
+						themecolor={State.ThemeColor.value}
+						lengthofdata={noOfTags}
+						start={tagsStart}
+						end={tagsEnd}
+						updatestart={(n: number) => (tagsStart = n)}
+						updateend={(n: number) => (tagsEnd = n)}
+						contentperpage={5}
+						displayiflengthofdatagreaterthancontentperpage={true}
+					></Component.Pagination>
+				</footer>
+			</section>
+		</main>
+
+		{@render updatedelete()}
+	{:else if tab === Tab.EDIT_DATA}
+		{#if datum.dataMetadataModel}
+			<main class="z-[1] flex flex-[9] overflow-hidden">
+				{#await import("$lib/components/MetadataModel/Datum/Input/Component.svelte") then { default: MetadataModelDatumInput }}
+					<MetadataModelDatumInput
+						metadatamodel={datum.dataMetadataModel}
+						datum={datum.data}
+						themecolor={State.ThemeColor.value}
+						theme={State.Theme.value}
+						updatemetadatamodel={(value) => {
+							datum.dataMetadataModel = value
+						}}
+						updatedata={(value) => {
+							datum.data = value
+						}}
+						{telemetry}
+						notification={(type, message) => {
+							State.Toast.Type = type
+							State.Toast.Message = message
+						}}
+					></MetadataModelDatumInput>
+				{/await}
+			</main>
+		{:else if datum.data}
+			{@render json(datum.data)}
+		{/if}
+
+		{@render updatedelete()}
+	{:else if tab === Tab.FILE}
+		{#if datum.storage_file}
+			{#await import('$lib/components/FileView/Component.svelte') then { default: FileView }}
+				<FileView
+					storagefile={datum.storage_file}
+					authcontextdirectorygroupid={authContextDirectoryGroupID}
+					{telemetry}
+					theme={State.Theme.value}
+					themecolor={State.ThemeColor.value}
+				></FileView>
+			{/await}
+		{:else}
+			<div class="flex flex-1 justify-center">
+				<span class="text-error self-center">File information not available</span>
+			</div>
+		{/if}
+	{:else if tab === Tab.REVIEW}
+		<main class="z-[1] flex flex-1 flex-col overflow-hidden p-2">
+			{#await getDisplayAbstractionsReviews()}
+				<div class="flex h-full w-full flex-[9.5] justify-center">
+					<span class="self-center">
+						<span class="loading text-primary loading-ball loading-md"></span>
+						<span class="loading text-secondary loading-ball loading-lg"></span>
+						<span class="loading text-accent loading-ball loading-xl"></span>
+					</span>
+				</div>
+			{:then}
+				<header class="z-[2] flex justify-center">
+					{#await import('$lib/components/View/AbstractionsReviews/SearchBar/Component.svelte') then { default: ViewAbstractionsReviewsSearchBar }}
+						<div class="max-md:w-full md:w-[60%]">
+							<ViewAbstractionsReviewsSearchBar
+								metadatamodel={abstractionsReviewsSearchMetadataModel}
+								themecolor={State.ThemeColor.value}
+								theme={State.Theme.value}
+								{telemetry}
+								querycondition={abstractionsReviewsQuickSearchQueryCondition}
+								updatequerycondition={(value) => {
+									abstractionsReviewsQuickSearchQueryCondition = value
+								}}
+								showquerypanel={() => {
+									showAbstractionsReviewsQueryPanel = !showAbstractionsReviewsQueryPanel
+								}}
+								search={() => {
+									searchAbstractionsReviews()
+								}}
+							></ViewAbstractionsReviewsSearchBar>
+						</div>
+					{/await}
+				</header>
+
+				<div class="divider mb-0 mt-0"></div>
+
+				<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+					{#if showAbstractionsReviewsQueryPanel}
+						<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+							{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+								<QueryPanel
+									themecolor={State.ThemeColor.value}
+									theme={State.Theme.value}
+									{telemetry}
+									metadatamodel={abstractionsReviewsSearchMetadataModel}
+									data={abstractionsReviewsSearchResults}
+									queryconditions={abstractionsReviewsQueryConditions}
+									filterexcludeindexes={abstractionsReviewsSearchFilterExcludeIndexes}
+									updatefilterexcludeindexes={(value) => {
+										abstractionsReviewsSearchFilterExcludeIndexes = value
+										State.Toast.Type = Domain.Entities.Toast.Type.INFO
+										State.Toast.Message = `${abstractionsReviewsSearchFilterExcludeIndexes.length} local results filtered out`
+									}}
+									updatemetadatamodel={updateAbstractionsReviewsMetadataModel}
+									updatequeryconditions={(value) => {
+										abstractionsReviewsQueryConditions = value
+									}}
+									hidequerypanel={() => (showAbstractionsReviewsQueryPanel = false)}
+								></QueryPanel>
+							{/await}
+						</section>
+					{/if}
+
+					{#if !showAbstractionsReviewsQueryPanel || windowWidth > 2000}
+						{#if abstractionsReviewsSearchResults.length > 0}
+							<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+									<ViewHeaderData
+										title={'Abstraction Checks'}
+										view={dataView}
+										themecolor={State.ThemeColor.value}
+										theme={State.Theme.value}
+										updateview={(value) => (dataView = value)}
+									></ViewHeaderData>
+								{/await}
+								{#await import('$lib/components/View/AbstractionsReviews/Data/Component.svelte') then { default: ViewAbstractionsReviewsData }}
+									<ViewAbstractionsReviewsData
+										metadatamodel={abstractionsReviewsSearchMetadataModel}
+										data={abstractionsReviewsSearchResults}
+										themecolor={State.ThemeColor.value}
+										theme={State.Theme.value}
+										{telemetry}
+										addclickcolumn={false}
+										view={dataView}
+										updatemetadatamodel={updateAbstractionsReviewsMetadataModel}
+										filterexcludeindexes={abstractionsReviewsSearchFilterExcludeIndexes}
+									></ViewAbstractionsReviewsData>
+								{/await}
+							</section>
+						{:else}
+							<div
+								class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+									? 'bg-gray-700'
+									: 'bg-gray-200'}"
+							>
+								<span class="flex self-center text-lg"> Perform checks on abstractions. </span>
+							</div>
+						{/if}
+					{/if}
+				</main>
+			{:catch e}
+				{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
+					<div class="flex h-full w-full flex-[9.5] justify-center">
+						<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
+					</div>
+				{/await}
+			{/await}
+		</main>
+
+		{#if State.Session.session?.iam_credential?.directory_id && datum.id}
+			<footer class="join w-full pb-2 pl-2 pr-2">
+				<button
+					class="join-item btn flex-1 {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+						? 'btn-primary'
+						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+							? 'btn-secondary'
+							: 'btn-accent'}"
+					onclick={() => {
+						reviewAbstraction(true)
+					}}
+				>
+					check passed
+				</button>
+
+				<button
+					class="join-item btn flex-1 {State.ThemeColor.value === Domain.Entities.Theme.Color.ACCENT
+						? 'btn-primary'
+						: State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+							? 'btn-secondary'
+							: 'btn-accent'}"
+					onclick={() => {
+						reviewAbstraction(false)
+					}}
+				>
+					check failed
+				</button>
+			</footer>
+		{/if}
+	{:else if tab === Tab.REVIEW_COMMENTS}
+		<main class="z-[1] flex flex-1 flex-col overflow-hidden p-2">
+			{#await getDisplayAbstractionsReviewsComments()}
+				<div class="flex h-full w-full flex-[9.5] justify-center">
+					<span class="self-center">
+						<span class="loading text-primary loading-ball loading-md"></span>
+						<span class="loading text-secondary loading-ball loading-lg"></span>
+						<span class="loading text-accent loading-ball loading-xl"></span>
+					</span>
+				</div>
+			{:then}
+				<header class="z-[2] flex justify-center">
+					{#await import('$lib/components/View/AbstractionsReviewsComments/SearchBar/Component.svelte') then { default: ViewAbstractionsReviewsCommentsSearchBar }}
+						<div class="max-md:w-full md:w-[60%]">
+							<ViewAbstractionsReviewsCommentsSearchBar
+								metadatamodel={abstractionsReviewsCommentsSearchMetadataModel}
+								themecolor={State.ThemeColor.value}
+								theme={State.Theme.value}
+								{telemetry}
+								querycondition={abstracionsReviewsCommentsQuickSearchQueryCondition}
+								updatequerycondition={(value) => {
+									abstracionsReviewsCommentsQuickSearchQueryCondition = value
+								}}
+								showquerypanel={() => {
+									showAbstractionsReviewsCommentsQueryPanel = !showAbstractionsReviewsCommentsQueryPanel
+								}}
+								search={() => {
+									searchAbstractionsReviewsComments()
+								}}
+							></ViewAbstractionsReviewsCommentsSearchBar>
+						</div>
+					{/await}
+				</header>
+
+				<div class="divider mb-0 mt-0"></div>
+
+				<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+					{#if showAbstractionsReviewsCommentsQueryPanel}
+						<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+							{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+								<QueryPanel
+									themecolor={State.ThemeColor.value}
+									theme={State.Theme.value}
+									{telemetry}
+									metadatamodel={abstractionsReviewsCommentsSearchMetadataModel}
+									data={abstractionsReviewsCommentsSearchResults}
+									queryconditions={abstractionsReviewsCommentsQueryConditions}
+									filterexcludeindexes={abstractionsReviewsCommentsSearchFilterExcludeIndexes}
+									updatefilterexcludeindexes={(value) => {
+										abstractionsReviewsCommentsSearchFilterExcludeIndexes = value
+										State.Toast.Type = Domain.Entities.Toast.Type.INFO
+										State.Toast.Message = `${abstractionsReviewsCommentsSearchFilterExcludeIndexes.length} local results filtered out`
+									}}
+									updatemetadatamodel={updateAbstractionsReviewsCommentsMetadataModel}
+									updatequeryconditions={(value) => {
+										abstractionsReviewsCommentsQueryConditions = value
+									}}
+									hidequerypanel={() => (showAbstractionsReviewsCommentsQueryPanel = false)}
+								></QueryPanel>
+							{/await}
+						</section>
+					{/if}
+
+					{#if !showAbstractionsReviewsCommentsQueryPanel || windowWidth > 2000}
+						{#if abstractionsReviewsCommentsSearchResults.length > 0}
+							<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+									<ViewHeaderData
+										title={'Abstractions checks comments'}
+										view={dataView}
+										themecolor={State.ThemeColor.value}
+										theme={State.Theme.value}
+										updateview={(value) => (dataView = value)}
+									></ViewHeaderData>
+								{/await}
+								{#await import('$lib/components/View/AbstractionsReviewsComments/Data/Component.svelte') then { default: ViewAbstractionsReviewsCommentsData }}
+									<ViewAbstractionsReviewsCommentsData
+										metadatamodel={abstractionsReviewsCommentsSearchMetadataModel}
+										data={abstractionsReviewsCommentsSearchResults}
+										themecolor={State.ThemeColor.value}
+										theme={State.Theme.value}
+										{telemetry}
+										addclickcolumn={false}
+										view={dataView}
+										updatemetadatamodel={updateAbstractionsReviewsCommentsMetadataModel}
+										filterexcludeindexes={abstractionsReviewsCommentsSearchFilterExcludeIndexes}
+									></ViewAbstractionsReviewsCommentsData>
+								{/await}
+							</section>
+						{:else}
+							<div
+								class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+									? 'bg-gray-700'
+									: 'bg-gray-200'}"
+							>
+								<span class="flex self-center text-lg"> Comment on your abstraction checks. </span>
+							</div>
+						{/if}
+					{/if}
+				</main>
+			{:catch e}
+				{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
+					<div class="flex h-full w-full flex-[9.5] justify-center">
+						<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
+					</div>
+				{/await}
+			{/await}
+		</main>
+
+		{#if State.Session.session?.iam_credential?.directory_id && datum.id}
+			<footer class="flex w-full gap-x-1 pb-2 pl-2 pr-2">
+				<textarea
+					class="textarea flex-1 max-h-[50vh] {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+						? 'textarea-primary'
+						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+							? 'textarea-secondary'
+							: 'textarea-accent'}"
+					placeholder="Enter comment..."
+					bind:value={comment}
+				>
+				</textarea>
+
+				<button
+					class="btn btn-circle self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+						? 'btn-primary'
+						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+							? 'btn-secondary'
+							: 'btn-accent'}"
+					onclick={() => {
+						reviewCommentAbstraction()
+					}}
+					disabled={!comment}
+				>
+					<!--mdi:send source: https://icon-sets.iconify.design-->
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="m2 21l21-9L2 3v7l15 2l-15 2z" />
+					</svg>
+				</button>
+			</footer>
+		{/if}
+	{/if}
+{/snippet}
+
+{#snippet updatedelete()}
+	{#if State.Session.session && State.Session.tokens && data.directory_group_id}
+		<footer class="join w-full pb-2">
+			{#if datum.update}
+				<button
+					class="join-item btn flex-1 {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+						? 'btn-primary'
+						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+							? 'btn-secondary'
+							: 'btn-accent'}"
+					onclick={async () => {
+						State.Loading.value = `Updating ${Domain.Entities.Abstractions.RepositoryName}`
+
+						try {
+							const toastData = await datum.update!(authedFetch, data.directory_group_id!, {
+								componentName: COMPONENT_NAME,
+								telemetry,
+								authContextDirectoryGroupID,
+								verboseResponse
+							})
+
+							State.Toast.Type = toastData.Type
+							State.Toast.Message = toastData.Message
+							State.Toast.MedataModelSearchResults = toastData.MedataModelSearchResults
+						} catch (e) {
+							if (Array.isArray(e)) {
+								handleError(e[0], e[1])
+							}
+						} finally {
+							State.Loading.value = undefined
+						}
+					}}
+				>
+					<!--mdi:edit source: https://icon-sets.iconify.design-->
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path
+							fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})"
+							d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83l3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"
+						/>
+					</svg>
+					{#if windowWidth > 768}
+						<span class="self-center">update</span>
+					{/if}
+				</button>
+			{/if}
+
+			{@render deletedatum()}
+		</footer>
+	{/if}
+{/snippet}
+
+{#snippet deletedatum()}
+	{#if datum.id && typeof datum.delete === 'function' && data.directory_group_id}
+		<button
+			class="join-item btn flex-1 {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+				? 'btn-primary'
+				: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+					? 'btn-secondary'
+					: 'btn-accent'}"
+			onclick={async () => {
+				State.Loading.value = `Deleting ${Domain.Entities.Abstractions.RepositoryName}`
+				try {
+					const toastData = await datum.delete!(authedFetch, data.directory_group_id!, {
+						componentName: COMPONENT_NAME,
+						telemetry,
+						authContextDirectoryGroupID,
+						verboseResponse
+					})
+
+					State.Toast.Type = toastData.Type
+					State.Toast.Message = toastData.Message
+					State.Toast.MedataModelSearchResults = toastData.MedataModelSearchResults
+
+					if (toastData.Type === Domain.Entities.Toast.Type.SUCCESS) {
+						goto(State.GetGroupNavigationPath(Domain.Entities.Url.WebsitePaths.Abstractions, data.directory_group_id))
+					}
+				} catch (e) {
+					if (Array.isArray(e)) {
+						handleError(e[0], e[1])
+					}
+				} finally {
+					State.Loading.value = undefined
+				}
+			}}
+		>
+			<!--mdi:delete source: https://icon-sets.iconify.design-->
+			<svg class="self-center" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+				<path
+					fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})"
+					d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z"
+				/>
+			</svg>
+
+			{#if windowWidth > 768}
+				<span class="self-center">delete</span>
+			{/if}
+		</button>
+	{/if}
+{/snippet}
+
+{#snippet json(value: any)}
+	<pre
+		class="h-fit max-h-[50vh] w-full flex-1 overflow-auto rounded-md {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+			? 'border-gray-900 bg-gray-700'
+			: 'bg-gray-200'} p-1 shadow-inner shadow-gray-800 lg:max-w-[50vw]"><code>{JSON.stringify(value, null, 4)}</code></pre>
+{/snippet}

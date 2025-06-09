@@ -1,0 +1,6 @@
+export const VA_LOGO_PNG = 'vector_atlas_logo.png'
+export const UOF_LOGO_PNG = 'university_of_oxford_logo.png'
+export const MAP_LOGO_PNG = 'malaria_atlas_project_logo.png'
+export const ICIPE_LOGO_PNG = 'icipe_logo.png'
+export const B_AND_A_LOGO_PNG = 'bill_and_melinda_gates_logo.png'
+export const LOGO_PNG = 'logo.png'
