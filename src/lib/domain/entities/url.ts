@@ -130,7 +130,8 @@ export const enum Action {
 	RETRIEVE = 'retrieve',
 	UPDATE = 'update',
 	DELETE = 'delete',
-	UPSERT = 'upsert'
+	UPSERT = 'upsert',
+	UPDATE_DIRECTORY = 'update_directory'
 }
 
 export function AddBaseUrl(url: URL) {

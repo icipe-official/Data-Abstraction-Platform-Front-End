@@ -610,8 +610,8 @@
 		}
 
 		let directory: Domain.Entities.IamGroupAuthorizations.Interface[] = []
-		for (const dIndex of selectedIamGroupAuthorizations) {
-			if (directoryIDQCKey) {
+		if (directoryIDQCKey) {
+			for (const dIndex of selectedIamGroupAuthorizations) {
 				const directoryID = MetadataModel.DatabaseGetColumnFieldValue(
 					JSON.parse(JSON.stringify(iamGroupAuthorizationSearchMetadataModel)),
 					directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
@@ -732,6 +732,8 @@
 			State.Loading.value = undefined
 		}
 	}
+
+	let showUpdateDirectoryID: boolean = $state(false)
 </script>
 
 <svelte:window bind:innerWidth={windowWidth} />
@@ -759,7 +761,7 @@
 							<path fill="var({Utils.Theme.GetColor(State.ThemeColor.value)})" d="M20 11v2H8l5.5 5.5l-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5L8 11z" />
 						</svg>
 					</button>
-					<span class="self-center"> Create Abstractions </span>
+					<span class="self-center"> Create Abstraction(s) </span>
 				</section>
 			</header>
 
@@ -1204,6 +1206,33 @@
 					</div>
 				{/if}
 			</main>
+		{:else if showUpdateDirectoryID}
+			<header class="z-[3] flex flex-col gap-y-1">
+				<section class="flex gap-x-1">
+					<button
+						class="btn btn-ghost btn-circle btn-md flex self-center"
+						aria-label="Close Reassign Abstractions"
+						onclick={() => {
+							showUpdateDirectoryID = false
+						}}
+					>
+						<!--mdi:arrow-back source: https://icon-sets.iconify.design-->
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path fill="var({Utils.Theme.GetColor(State.ThemeColor.value)})" d="M20 11v2H8l5.5 5.5l-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5L8 11z" />
+						</svg>
+					</button>
+					<span class="self-center"> Reassign Abstraction(s) </span>
+				</section>
+			</header>
+
+			{#await import('$lib/components/Administration/AbstractionsReassign/Components.svelte') then { default: AdministrationAbstractionsReassign }}
+				<AdministrationAbstractionsReassign
+					theme={State.Theme.value}
+					themecolor={State.ThemeColor.value}
+					{telemetry}
+					directorygroupid={data.directory_group_id}
+				></AdministrationAbstractionsReassign>
+			{/await}
 		{:else}
 			<header class="z-[2] flex justify-between gap-x-2">
 				{#await import('$lib/components/View/Abstractions/SearchBar/Component.svelte') then { default: ViewAbstractionsSearchBar }}
@@ -1227,21 +1256,42 @@
 					</div>
 				{/await}
 
-				<button
-					class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
-						? 'btn-primary tooltip-primary'
-						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
-							? 'btn-secondary tooltip-secondary'
-							: 'btn-accent tooltip-accent'}"
-					aria-label="Create New abstraction(s)"
-					data-tip="Create new abstraction(s)"
-					onclick={() => (showCreateNewAbstractions = true)}
-				>
-					<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-						<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
-					</svg>
-				</button>
+				<section class="flex gap-x-6">
+					<button
+						class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+							? 'btn-primary tooltip-primary'
+							: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+								? 'btn-secondary tooltip-secondary'
+								: 'btn-accent tooltip-accent'}"
+						aria-label="Reassign abstraction(s)"
+						data-tip="Reassign abstraction(s)"
+						onclick={() => (showUpdateDirectoryID = true)}
+					>
+						<!--mdi:assignment-ind source: https://icon-sets.iconify.design-->
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path
+								fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})"
+								d="M18 19H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1M12 7a3 3 0 0 1 3 3a3 3 0 0 1-3 3a3 3 0 0 1-3-3a3 3 0 0 1 3-3m0-4a1 1 0 0 1 1 1a1 1 0 0 1-1 1a1 1 0 0 1-1-1a1 1 0 0 1 1-1m7 0h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2"
+							/>
+						</svg>
+					</button>
+
+					<button
+						class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+							? 'btn-primary tooltip-primary'
+							: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+								? 'btn-secondary tooltip-secondary'
+								: 'btn-accent tooltip-accent'}"
+						aria-label="Create New abstraction(s)"
+						data-tip="Create new abstraction(s)"
+						onclick={() => (showCreateNewAbstractions = true)}
+					>
+						<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
+						</svg>
+					</button>
+				</section>
 			</header>
 
 			<div class="divider mb-0 mt-0"></div>

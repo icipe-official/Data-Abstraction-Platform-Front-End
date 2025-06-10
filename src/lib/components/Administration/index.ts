@@ -1,3 +1,4 @@
+export { default as AbstractionsReassign } from './AbstractionsReassign/Components.svelte'
 export { default as AbstractionsDirectoryGroups } from './AbstractionsDirectoryGroups/Component.svelte'
 export { default as Directory } from './Directory/Component.svelte'
 export { default as DirectoryGroups } from './DirectoryGroups/Component.svelte'

@@ -4,7 +4,7 @@ export enum ModelInformationTab {
 }
 
 export enum BuildTab {
-	BUILD = 'buid',
+	BUILD = 'build',
 	UPLOAD = 'upload'
 }
 

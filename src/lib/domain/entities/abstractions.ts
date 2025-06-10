@@ -29,3 +29,13 @@ export interface Interface {
 	last_updated_on?: string[]
 	deactivated_on?: string[]
 }
+
+export interface UpdateDirectory {
+	directory_id?: string[]
+	directory_group_id?: string[]
+	abstractions_id?: string[]
+	storage_files_full_text_search?: string[]
+	completed?: boolean
+	review_pass?: boolean
+	new_directory_id?: string
+}
