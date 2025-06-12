@@ -375,7 +375,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -544,19 +544,19 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.StorageFiles.RepositoryName, Domain.Entities.StorageFiles.FieldColumn.OriginalName, 0)}
-								{@render datumoriginalname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumoriginalname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.StorageFiles.RepositoryName, Domain.Entities.StorageFiles.FieldColumn.StorageFileMimeType, 0)}
-								{@render datumfilemimetye(rowIndex)}
+								<span class="z-[0] p-2">{@render datumfilemimetye(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DisplayName, 1)}
-								{@render datumdirectorydisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdirectorydisplayname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 1)}
-								{@render datumgroupdisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumgroupdisplayname(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}

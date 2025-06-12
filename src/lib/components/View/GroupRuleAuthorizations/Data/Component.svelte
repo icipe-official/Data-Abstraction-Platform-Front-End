@@ -352,7 +352,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -507,23 +507,23 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.GroupRuleAuthorizations.RepositoryName, Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID, 0)}
-								{@render datumruleid(rowIndex)}
+								<span class="z-[0] p-2">{@render datumruleid(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.GroupRuleAuthorizations.RepositoryName, Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup, 0)}
-								{@render datumrulegroup(rowIndex)}
+								<span class="z-[0] p-2">{@render datumrulegroup(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.GroupAuthorizationRules.RepositoryName, Domain.Entities.GroupAuthorizationRules.FieldColumn.Description, 1)}
-								{@render datumruledescription(rowIndex)}
+								<span class="z-[0] p-2">{@render datumruledescription(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 1)}
-								{@render datumgroupdisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumgroupdisplayname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.Description, 1)}
-								{@render datumgroupdescription(rowIndex)}
+								<span class="z-[0] p-2">{@render datumgroupdescription(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}

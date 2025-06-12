@@ -420,7 +420,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -453,7 +453,7 @@
 									? 'tooltip-primary'
 									: themecolor === Domain.Entities.Theme.Color.SECONDARY
 										? 'tooltip-secondary'
-										: 'tooltip-accent'}"
+										: 'tooltip-accent'} p-1"
 								data-tip="select/unselect rows"
 							>
 								<input
@@ -526,7 +526,7 @@
 					</span>
 				</header>
 
-				<main class="z-[1] grid gap-4" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+				<main class="z-[1] grid" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 					{#each Utils.Range(rowsStart, Utils.RangeArrayEnd(rowsEnd, noOfRows)) as rIndex (rIndex)}
 						{@const rowIndex = viewableRows[rIndex]}
 
@@ -544,7 +544,7 @@
 										: 'border-gray-900 bg-gray-700'
 									: switchbackground
 										? 'border-gray-500 bg-gray-300'
-										: 'border-gray-400 bg-gray-200'}"
+										: 'border-gray-400 bg-gray-200'} min-w-full"
 							>
 								<div class="flex h-full w-[47px] min-w-fit justify-center p-1 text-lg font-bold">
 									<button
@@ -571,7 +571,7 @@
 											? 'tooltip-primary'
 											: themecolor === Domain.Entities.Theme.Color.SECONDARY
 												? 'tooltip-secondary'
-												: 'tooltip-accent'}"
+												: 'tooltip-accent'} p-1"
 										data-tip="select/unselect row"
 										style="top: {stickytop}px;"
 									>
@@ -601,37 +601,35 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Abstractions.RepositoryName, Domain.Entities.Abstractions.FieldColumn.ID, 0)}
-								{@render datumid(rowIndex)}
+								<span class="z-[0] p-2">{@render datumid(rowIndex)}</span>
 							{/if}
 
-							<span class="z-[0]">
-								{#if getFieldGroupByFieldColumnName(Domain.Entities.Abstractions.RepositoryName, Domain.Entities.Abstractions.FieldColumn.Data, 0)}
-									{@render datumdata(rowIndex)}
-								{/if}
-							</span>
+							{#if getFieldGroupByFieldColumnName(Domain.Entities.Abstractions.RepositoryName, Domain.Entities.Abstractions.FieldColumn.Data, 0)}
+								<span class="z-[0] p-2">{@render datumdata(rowIndex)}</span>
+							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Abstractions.RepositoryName, Domain.Entities.Abstractions.FieldColumn.Completed, 0)}
-								{@render datumcompleted(rowIndex)}
+								<span class="z-[0] p-2">{@render datumcompleted(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Abstractions.RepositoryName, Domain.Entities.Abstractions.FieldColumn.ReviewPass, 0)}
-								{@render datumreviewpass(rowIndex)}
+								<span class="z-[0] p-2">{@render datumreviewpass(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.StorageFiles.RepositoryName, Domain.Entities.StorageFiles.FieldColumn.OriginalName, 1)}
-								{@render datumfilename(rowIndex)}
+								<span class="z-[0] p-2">{@render datumfilename(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DisplayName, 1)}
-								{@render datumdirectorydisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdirectorydisplayname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.MetadataModels.RepositoryName, Domain.Entities.MetadataModels.FieldColumn.Name, 2)}
-								{@render datummodelname(rowIndex)}
+								<span class="z-[0] p-2">{@render datummodelname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 2)}
-								{@render datumgroupdisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumgroupdisplayname(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}

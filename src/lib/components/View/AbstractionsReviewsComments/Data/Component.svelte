@@ -347,7 +347,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -502,23 +502,23 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.AbstractionsReviewsComments.RepositoryName, Domain.Entities.AbstractionsReviewsComments.FieldColumn.AbstractionsID, 0)}
-								{@render datumabstractionid(rowIndex)}
+								<span class="z-[0] p-2">{@render datumabstractionid(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.AbstractionsReviewsComments.RepositoryName, Domain.Entities.AbstractionsReviewsComments.FieldColumn.DirectoryID, 0)}
-								{@render datumdirectoryid(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdirectoryid(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DisplayName, 1)}
-								{@render datumdirectoryname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdirectoryname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.AbstractionsReviewsComments.RepositoryName, Domain.Entities.AbstractionsReviewsComments.FieldColumn.Comment, 0)}
-								{@render datumcomment(rowIndex)}
+								<span class="z-[0] p-2">{@render datumcomment(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.AbstractionsReviewsComments.RepositoryName, Domain.Entities.AbstractionsReviewsComments.FieldColumn.CreatedOn, 0)}
-								{@render datumcreatedon(rowIndex)}
+								<span class="z-[0] p-2">{@render datumcreatedon(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}

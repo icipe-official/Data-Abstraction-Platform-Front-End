@@ -66,22 +66,7 @@
 		}
 	}
 
-	function getFieldGroupByFieldColumnName(tableCollectionName: string, fieldColumnName: string, joinDepth: number = 0) {
-		let fieldGroup: any
-
-		MetadataModel.ForEachFieldGroup(metadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === joinDepth &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === tableCollectionName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === fieldColumnName
-			) {
-				fieldGroup = JSON.parse(JSON.stringify(property))
-				return true
-			}
-		})
-
-		return fieldGroup
-	}
+	
 </script>
 
 <div class="flex h-fit {directoryQCKey ? 'w-full' : 'w-fit'} flex-col">

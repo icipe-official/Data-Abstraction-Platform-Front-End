@@ -93,152 +93,43 @@
 		}
 	}
 
-	let abstractionsReviewsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
-		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
-		) {
-			return undefined
+	onMount(() => {
+		if (datum.id) {
+			abstractionsReviewsSearch = Interfaces.AbstractionsReviews.NewViewSearch(datum.id)
+			abstractionsReviewsCommentsSearch = Interfaces.AbstractionsReviewsComments.NewViewSearch(datum.id)
 		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
 	})
-	let abstractionsReviewsQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let abstractionsReviewsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let abstractionsReviewsCurrentAbstractionQueryCondition: MetadataModel.QueryConditions = $state({})
-	let abstractionsReviewsSearchMetadataModel: any = $state({})
-	let abstractionsReviewsSearchResults: any[] = $state([])
-	let abstractionsReviewsSearchFilterExcludeIndexes: number[] = $state([])
-	async function getDisplayAbstractionsReviews() {
-		if (!abstractionsReviewsSearch || !datum.id) {
-			throw [401, 'Unauthorized']
+
+	let abstractionsReviewsSearch = $state(Interfaces.AbstractionsReviews.NewViewSearch())
+
+	$effect(() => {
+		if (
+			datum.id &&
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
+		) {
+			untrack(() => {
+				abstractionsReviewsSearch.search = new Interfaces.MetadataModels.SearchData(
+					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
+					new Interfaces.AuthenticatedFetch.Client(true)
+				)
+				abstractionsReviewsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				abstractionsReviewsSearch.context = COMPONENT_NAME
+				abstractionsReviewsSearch.telemetry = telemetry
+
+				abstractionsReviewsSearch.search = new Interfaces.MetadataModels.SearchData(
+					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
+					new Interfaces.AuthenticatedFetch.Client(true)
+				)
+				abstractionsReviewsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				abstractionsReviewsSearch.context = COMPONENT_NAME
+				abstractionsReviewsSearch.telemetry = telemetry
+			})
 		}
-
-		if (Object.keys(abstractionsReviewsSearch.searchmetadatamodel).length === 0) {
-			try {
-				await abstractionsReviewsSearch.FetchMetadataModel(authContextDirectoryGroupID, 1, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.AbstractionsReviews.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		} else {
-			return
-		}
-
-		abstractionsReviewsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(abstractionsReviewsSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.AbstractionsReviews.RepositoryName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.AbstractionsReviews.FieldColumn.LastUpdatedOn
-			) {
-				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-			}
-
-			return property
-		})
-
-		abstractionsReviewsSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 50
-
-		abstractionsReviewsSearchMetadataModel = abstractionsReviewsSearch.searchmetadatamodel
-
-		const abstractionIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			abstractionsReviewsSearchMetadataModel,
-			Domain.Entities.AbstractionsReviews.FieldColumn.AbstractionsID,
-			abstractionsReviewsSearchMetadataModel[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME],
-			abstractionsReviewsSearchMetadataModel[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH]
-		)
-
-		if (!abstractionIDQCKey) {
-			throw [500, `abstractionIDQCKey not valid`]
-		}
-
-		abstractionsReviewsCurrentAbstractionQueryCondition = {
-			[abstractionIDQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: abstractionIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: abstractionIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: datum.id
-							}
-						}
-					]
-				]
-			}
-		}
-
-		try {
-			await searchAbstractionsReviews()
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateAbstractionsReviewsMetadataModel(value: any) {
-		abstractionsReviewsSearchMetadataModel = value
-		if (abstractionsReviewsSearch) {
-			abstractionsReviewsSearch.searchmetadatamodel = abstractionsReviewsSearchMetadataModel
-		}
-	}
-	async function searchAbstractionsReviews() {
-		if (!abstractionsReviewsSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.AbstractionsReviews.RepositoryName}...`
-		try {
-			await abstractionsReviewsSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(abstractionsReviewsQueryConditions, [
-					abstractionsReviewsQuickSearchQueryCondition,
-					abstractionsReviewsCurrentAbstractionQueryCondition
-				]),
-				authContextDirectoryGroupID || data.directory_group_id,
-				authContextDirectoryGroupID || data.directory_group_id,
-				1,
-				false,
-				false,
-				undefined
-			)
-
-			abstractionsReviewsSearchFilterExcludeIndexes = []
-			abstractionsReviewsSearchResults = abstractionsReviewsSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${abstractionsReviewsSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.AbstractionsReviews.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let dataView: Component.View.View = $state('list')
-	let showAbstractionsReviewsQueryPanel: boolean = $state(false)
+	})
 
 	async function reviewAbstraction(pass: boolean) {
 		if (!Array.isArray(State.Session.session?.iam_credential?.directory_id) || !datum.id || !data.directory_group_id) {
@@ -288,7 +179,9 @@
 				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
 				State.Toast.Message = toastData.message
 				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
-				searchAbstractionsReviews()
+				if (abstractionsReviewsSearch.searchdata) {
+					abstractionsReviewsSearch.searchdata()
+				}
 			} else {
 				handleError(fetchResponse.status, fetchData)
 			}
@@ -301,154 +194,7 @@
 		}
 	}
 
-	let abstractionsReviewsCommentsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
-		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
-		) {
-			return undefined
-		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Comments}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Comments}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
-	})
-
-	let abstractionsReviewsCommentsQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let abstracionsReviewsCommentsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let abstractionsReviewsCommentsSearchMetadataModel: any = $state({})
-	let abstractionsReviewsCommentsSearchResults: any[] = $state([])
-	let abstractionsReviewsCommentsSearchFilterExcludeIndexes: number[] = $state([])
-
-	async function getDisplayAbstractionsReviewsComments() {
-		if (!abstractionsReviewsCommentsSearch) {
-			throw [401, 'Unauthorized']
-		}
-
-		if (Object.keys(abstractionsReviewsCommentsSearch.searchmetadatamodel).length === 0) {
-			try {
-				await abstractionsReviewsCommentsSearch.FetchMetadataModel(authContextDirectoryGroupID, 1, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.AbstractionsReviewsComments.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		} else {
-			return
-		}
-
-		abstractionsReviewsCommentsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(
-			abstractionsReviewsCommentsSearch.searchmetadatamodel,
-			(property: any) => {
-				if (
-					property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-					property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.AbstractionsReviewsComments.RepositoryName &&
-					property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.AbstractionsReviewsComments.FieldColumn.CreatedOn
-				) {
-					property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-				}
-
-				return property
-			}
-		)
-
-		abstractionsReviewsCommentsSearchMetadataModel = abstractionsReviewsCommentsSearch.searchmetadatamodel
-
-		const abstractionIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			abstractionsReviewsCommentsSearchMetadataModel,
-			Domain.Entities.AbstractionsReviewsComments.FieldColumn.AbstractionsID,
-			abstractionsReviewsCommentsSearchMetadataModel[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME],
-			abstractionsReviewsCommentsSearchMetadataModel[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH]
-		)
-
-		if (!abstractionIDQCKey) {
-			throw [500, `abstractionIDQCKey not valid`]
-		}
-
-		abstractionsReviewsCurrentAbstractionQueryCondition = {
-			[abstractionIDQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: abstractionIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: abstractionIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: datum.id
-							}
-						}
-					]
-				]
-			}
-		}
-		try {
-			await searchAbstractionsReviewsComments()
-		} catch (e) {
-			throw e
-		}
-	}
-
-	function updateAbstractionsReviewsCommentsMetadataModel(value: any) {
-		abstractionsReviewsCommentsSearchMetadataModel = value
-		if (abstractionsReviewsCommentsSearch) {
-			abstractionsReviewsCommentsSearch.searchmetadatamodel = abstractionsReviewsCommentsSearchMetadataModel
-		}
-	}
-
-	async function searchAbstractionsReviewsComments() {
-		if (!abstractionsReviewsCommentsSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.AbstractionsReviewsComments.RepositoryName}...`
-		try {
-			await abstractionsReviewsCommentsSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(abstractionsReviewsCommentsQueryConditions, [
-					abstractionsReviewsQuickSearchQueryCondition
-				]),
-				authContextDirectoryGroupID || data.directory_group_id,
-				authContextDirectoryGroupID || data.directory_group_id,
-				1,
-				false,
-				false,
-				undefined
-			)
-
-			abstractionsReviewsCommentsSearchFilterExcludeIndexes = []
-			abstractionsReviewsCommentsSearchResults = abstractionsReviewsCommentsSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${abstractionsReviewsCommentsSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.AbstractionsReviewsComments.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-
-	let showAbstractionsReviewsCommentsQueryPanel: boolean = $state(false)
+	let abstractionsReviewsCommentsSearch = $state(Interfaces.AbstractionsReviewsComments.NewViewSearch())
 
 	let comment: string = $state('')
 	async function reviewCommentAbstraction() {
@@ -499,7 +245,10 @@
 				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
 				State.Toast.Message = toastData.message
 				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
-				searchAbstractionsReviewsComments()
+				if (abstractionsReviewsCommentsSearch.searchdata) {
+					abstractionsReviewsCommentsSearch.searchdata()
+				}
+
 				comment = ''
 			} else {
 				handleError(fetchResponse.status, fetchData)
@@ -928,111 +677,123 @@
 		{/if}
 	{:else if tab === Tab.REVIEW}
 		<main class="z-[1] flex flex-1 flex-col overflow-hidden p-2">
-			{#await getDisplayAbstractionsReviews()}
-				<div class="flex h-full w-full flex-[9.5] justify-center">
-					<span class="self-center">
-						<span class="loading text-primary loading-ball loading-md"></span>
-						<span class="loading text-secondary loading-ball loading-lg"></span>
-						<span class="loading text-accent loading-ball loading-xl"></span>
-					</span>
-				</div>
-			{:then}
-				<header class="z-[2] flex justify-center">
-					{#await import('$lib/components/View/AbstractionsReviews/SearchBar/Component.svelte') then { default: ViewAbstractionsReviewsSearchBar }}
-						<div class="max-md:w-full md:w-[60%]">
-							<ViewAbstractionsReviewsSearchBar
-								metadatamodel={abstractionsReviewsSearchMetadataModel}
-								themecolor={State.ThemeColor.value}
-								theme={State.Theme.value}
-								{telemetry}
-								querycondition={abstractionsReviewsQuickSearchQueryCondition}
-								updatequerycondition={(value) => {
-									abstractionsReviewsQuickSearchQueryCondition = value
-								}}
-								showquerypanel={() => {
-									showAbstractionsReviewsQueryPanel = !showAbstractionsReviewsQueryPanel
-								}}
-								search={() => {
-									searchAbstractionsReviews()
-								}}
-							></ViewAbstractionsReviewsSearchBar>
-						</div>
-					{/await}
-				</header>
-
-				<div class="divider mb-0 mt-0"></div>
-
-				<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-					{#if showAbstractionsReviewsQueryPanel}
-						<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-							{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-								<QueryPanel
+			{#if abstractionsReviewsSearch.getdisplaydata}
+				{#await abstractionsReviewsSearch.getdisplaydata()}
+					<div class="flex h-full w-full flex-[9.5] justify-center">
+						<span class="self-center">
+							<span class="loading text-primary loading-ball loading-md"></span>
+							<span class="loading text-secondary loading-ball loading-lg"></span>
+							<span class="loading text-accent loading-ball loading-xl"></span>
+						</span>
+					</div>
+				{:then}
+					<header class="z-[2] flex justify-center">
+						{#await import('$lib/components/View/AbstractionsReviews/SearchBar/Component.svelte') then { default: ViewAbstractionsReviewsSearchBar }}
+							<div class="max-md:w-full md:w-[60%]">
+								<ViewAbstractionsReviewsSearchBar
+									metadatamodel={abstractionsReviewsSearch.searchmetadatamodel}
 									themecolor={State.ThemeColor.value}
 									theme={State.Theme.value}
 									{telemetry}
-									metadatamodel={abstractionsReviewsSearchMetadataModel}
-									data={abstractionsReviewsSearchResults}
-									queryconditions={abstractionsReviewsQueryConditions}
-									filterexcludeindexes={abstractionsReviewsSearchFilterExcludeIndexes}
-									updatefilterexcludeindexes={(value) => {
-										abstractionsReviewsSearchFilterExcludeIndexes = value
-										State.Toast.Type = Domain.Entities.Toast.Type.INFO
-										State.Toast.Message = `${abstractionsReviewsSearchFilterExcludeIndexes.length} local results filtered out`
+									querycondition={abstractionsReviewsSearch.quicksearchquerycondition}
+									updatequerycondition={(value) => {
+										abstractionsReviewsSearch.quicksearchquerycondition = value
 									}}
-									updatemetadatamodel={updateAbstractionsReviewsMetadataModel}
-									updatequeryconditions={(value) => {
-										abstractionsReviewsQueryConditions = value
+									showquerypanel={() => {
+										abstractionsReviewsSearch.showquerypanel = !abstractionsReviewsSearch.showquerypanel
 									}}
-									hidequerypanel={() => (showAbstractionsReviewsQueryPanel = false)}
-								></QueryPanel>
-							{/await}
-						</section>
-					{/if}
+									search={() => {
+										if (abstractionsReviewsSearch.searchdata) {
+											abstractionsReviewsSearch.searchdata()
+										}
+									}}
+								></ViewAbstractionsReviewsSearchBar>
+							</div>
+						{/await}
+					</header>
 
-					{#if !showAbstractionsReviewsQueryPanel || windowWidth > 2000}
-						{#if abstractionsReviewsSearchResults.length > 0}
-							<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-									<ViewHeaderData
-										title={'Abstraction Checks'}
-										view={dataView}
-										themecolor={State.ThemeColor.value}
-										theme={State.Theme.value}
-										updateview={(value) => (dataView = value)}
-									></ViewHeaderData>
-								{/await}
-								{#await import('$lib/components/View/AbstractionsReviews/Data/Component.svelte') then { default: ViewAbstractionsReviewsData }}
-									<ViewAbstractionsReviewsData
-										metadatamodel={abstractionsReviewsSearchMetadataModel}
-										data={abstractionsReviewsSearchResults}
+					<div class="divider mb-0 mt-0"></div>
+
+					<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+						{#if abstractionsReviewsSearch.showquerypanel}
+							<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+								{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+									<QueryPanel
 										themecolor={State.ThemeColor.value}
 										theme={State.Theme.value}
 										{telemetry}
-										addclickcolumn={false}
-										view={dataView}
-										updatemetadatamodel={updateAbstractionsReviewsMetadataModel}
-										filterexcludeindexes={abstractionsReviewsSearchFilterExcludeIndexes}
-									></ViewAbstractionsReviewsData>
+										metadatamodel={abstractionsReviewsSearch.searchmetadatamodel}
+										data={abstractionsReviewsSearch.searchresults}
+										queryconditions={abstractionsReviewsSearch.queryconditions}
+										filterexcludeindexes={abstractionsReviewsSearch.filterexcludeindexes}
+										updatefilterexcludeindexes={(value) => {
+											abstractionsReviewsSearch.filterexcludeindexes = value
+											State.Toast.Type = Domain.Entities.Toast.Type.INFO
+											State.Toast.Message = `${abstractionsReviewsSearch.filterexcludeindexes.length} local results filtered out`
+										}}
+										updatemetadatamodel={(value: any) => {
+											if (abstractionsReviewsSearch.updatemedataModel) {
+												abstractionsReviewsSearch.updatemedataModel(value)
+											}
+										}}
+										updatequeryconditions={(value) => {
+											abstractionsReviewsSearch.queryconditions = value
+										}}
+										hidequerypanel={() => (abstractionsReviewsSearch.showquerypanel = false)}
+									></QueryPanel>
 								{/await}
 							</section>
-						{:else}
-							<div
-								class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
-									? 'bg-gray-700'
-									: 'bg-gray-200'}"
-							>
-								<span class="flex self-center text-lg"> Perform checks on abstractions. </span>
-							</div>
 						{/if}
-					{/if}
-				</main>
-			{:catch e}
-				{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
-					<div class="flex h-full w-full flex-[9.5] justify-center">
-						<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
-					</div>
+
+						{#if !abstractionsReviewsSearch.showquerypanel || windowWidth > 2000}
+							{#if abstractionsReviewsSearch.searchresults!.length > 0}
+								<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+									{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+										<ViewHeaderData
+											title={'Abstraction Checks'}
+											view={abstractionsReviewsSearch.view}
+											themecolor={State.ThemeColor.value}
+											theme={State.Theme.value}
+											updateview={(value) => (abstractionsReviewsSearch.view = value)}
+										></ViewHeaderData>
+									{/await}
+									{#await import('$lib/components/View/AbstractionsReviews/Data/Component.svelte') then { default: ViewAbstractionsReviewsData }}
+										<ViewAbstractionsReviewsData
+											metadatamodel={abstractionsReviewsSearch.searchmetadatamodel}
+											data={abstractionsReviewsSearch.searchresults}
+											themecolor={State.ThemeColor.value}
+											theme={State.Theme.value}
+											{telemetry}
+											addclickcolumn={false}
+											view={abstractionsReviewsSearch.view}
+											updatemetadatamodel={(value: any) => {
+												if (abstractionsReviewsSearch.updatemedataModel) {
+													abstractionsReviewsSearch.updatemedataModel(value)
+												}
+											}}
+											filterexcludeindexes={abstractionsReviewsSearch.filterexcludeindexes}
+										></ViewAbstractionsReviewsData>
+									{/await}
+								</section>
+							{:else}
+								<div
+									class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+										? 'bg-gray-700'
+										: 'bg-gray-200'}"
+								>
+									<span class="flex self-center text-lg"> Perform checks on abstractions. </span>
+								</div>
+							{/if}
+						{/if}
+					</main>
+				{:catch e}
+					{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
+						<div class="flex h-full w-full flex-[9.5] justify-center">
+							<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
+						</div>
+					{/await}
 				{/await}
-			{/await}
+			{/if}
 		</main>
 
 		{#if State.Session.session?.iam_credential?.directory_id && datum.id}
@@ -1066,117 +827,129 @@
 		{/if}
 	{:else if tab === Tab.REVIEW_COMMENTS}
 		<main class="z-[1] flex flex-1 flex-col overflow-hidden p-2">
-			{#await getDisplayAbstractionsReviewsComments()}
-				<div class="flex h-full w-full flex-[9.5] justify-center">
-					<span class="self-center">
-						<span class="loading text-primary loading-ball loading-md"></span>
-						<span class="loading text-secondary loading-ball loading-lg"></span>
-						<span class="loading text-accent loading-ball loading-xl"></span>
-					</span>
-				</div>
-			{:then}
-				<header class="z-[2] flex justify-center">
-					{#await import('$lib/components/View/AbstractionsReviewsComments/SearchBar/Component.svelte') then { default: ViewAbstractionsReviewsCommentsSearchBar }}
-						<div class="max-md:w-full md:w-[60%]">
-							<ViewAbstractionsReviewsCommentsSearchBar
-								metadatamodel={abstractionsReviewsCommentsSearchMetadataModel}
-								themecolor={State.ThemeColor.value}
-								theme={State.Theme.value}
-								{telemetry}
-								querycondition={abstracionsReviewsCommentsQuickSearchQueryCondition}
-								updatequerycondition={(value) => {
-									abstracionsReviewsCommentsQuickSearchQueryCondition = value
-								}}
-								showquerypanel={() => {
-									showAbstractionsReviewsCommentsQueryPanel = !showAbstractionsReviewsCommentsQueryPanel
-								}}
-								search={() => {
-									searchAbstractionsReviewsComments()
-								}}
-							></ViewAbstractionsReviewsCommentsSearchBar>
-						</div>
-					{/await}
-				</header>
-
-				<div class="divider mb-0 mt-0"></div>
-
-				<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-					{#if showAbstractionsReviewsCommentsQueryPanel}
-						<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-							{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-								<QueryPanel
+			{#if abstractionsReviewsCommentsSearch.getdisplaydata}
+				{#await abstractionsReviewsCommentsSearch.getdisplaydata()}
+					<div class="flex h-full w-full flex-[9.5] justify-center">
+						<span class="self-center">
+							<span class="loading text-primary loading-ball loading-md"></span>
+							<span class="loading text-secondary loading-ball loading-lg"></span>
+							<span class="loading text-accent loading-ball loading-xl"></span>
+						</span>
+					</div>
+				{:then}
+					<header class="z-[2] flex justify-center">
+						{#await import('$lib/components/View/AbstractionsReviewsComments/SearchBar/Component.svelte') then { default: ViewAbstractionsReviewsCommentsSearchBar }}
+							<div class="max-md:w-full md:w-[60%]">
+								<ViewAbstractionsReviewsCommentsSearchBar
+									metadatamodel={abstractionsReviewsCommentsSearch.searchmetadatamodel}
 									themecolor={State.ThemeColor.value}
 									theme={State.Theme.value}
 									{telemetry}
-									metadatamodel={abstractionsReviewsCommentsSearchMetadataModel}
-									data={abstractionsReviewsCommentsSearchResults}
-									queryconditions={abstractionsReviewsCommentsQueryConditions}
-									filterexcludeindexes={abstractionsReviewsCommentsSearchFilterExcludeIndexes}
-									updatefilterexcludeindexes={(value) => {
-										abstractionsReviewsCommentsSearchFilterExcludeIndexes = value
-										State.Toast.Type = Domain.Entities.Toast.Type.INFO
-										State.Toast.Message = `${abstractionsReviewsCommentsSearchFilterExcludeIndexes.length} local results filtered out`
+									querycondition={abstractionsReviewsCommentsSearch.quicksearchquerycondition}
+									updatequerycondition={(value) => {
+										abstractionsReviewsCommentsSearch.quicksearchquerycondition = value
 									}}
-									updatemetadatamodel={updateAbstractionsReviewsCommentsMetadataModel}
-									updatequeryconditions={(value) => {
-										abstractionsReviewsCommentsQueryConditions = value
+									showquerypanel={() => {
+										abstractionsReviewsCommentsSearch.showquerypanel = !abstractionsReviewsCommentsSearch.showquerypanel
 									}}
-									hidequerypanel={() => (showAbstractionsReviewsCommentsQueryPanel = false)}
-								></QueryPanel>
-							{/await}
-						</section>
-					{/if}
+									search={() => {
+										if (abstractionsReviewsCommentsSearch.searchdata) {
+											abstractionsReviewsCommentsSearch.searchdata()
+										}
+									}}
+								></ViewAbstractionsReviewsCommentsSearchBar>
+							</div>
+						{/await}
+					</header>
 
-					{#if !showAbstractionsReviewsCommentsQueryPanel || windowWidth > 2000}
-						{#if abstractionsReviewsCommentsSearchResults.length > 0}
-							<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-									<ViewHeaderData
-										title={'Abstractions checks comments'}
-										view={dataView}
-										themecolor={State.ThemeColor.value}
-										theme={State.Theme.value}
-										updateview={(value) => (dataView = value)}
-									></ViewHeaderData>
-								{/await}
-								{#await import('$lib/components/View/AbstractionsReviewsComments/Data/Component.svelte') then { default: ViewAbstractionsReviewsCommentsData }}
-									<ViewAbstractionsReviewsCommentsData
-										metadatamodel={abstractionsReviewsCommentsSearchMetadataModel}
-										data={abstractionsReviewsCommentsSearchResults}
+					<div class="divider mb-0 mt-0"></div>
+
+					<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+						{#if abstractionsReviewsCommentsSearch.showquerypanel}
+							<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+								{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+									<QueryPanel
 										themecolor={State.ThemeColor.value}
 										theme={State.Theme.value}
 										{telemetry}
-										addclickcolumn={false}
-										view={dataView}
-										updatemetadatamodel={updateAbstractionsReviewsCommentsMetadataModel}
-										filterexcludeindexes={abstractionsReviewsCommentsSearchFilterExcludeIndexes}
-									></ViewAbstractionsReviewsCommentsData>
+										metadatamodel={abstractionsReviewsCommentsSearch.searchmetadatamodel}
+										data={abstractionsReviewsCommentsSearch.searchresults}
+										queryconditions={abstractionsReviewsCommentsSearch.queryconditions}
+										filterexcludeindexes={abstractionsReviewsCommentsSearch.filterexcludeindexes}
+										updatefilterexcludeindexes={(value) => {
+											abstractionsReviewsCommentsSearch.filterexcludeindexes = value
+											State.Toast.Type = Domain.Entities.Toast.Type.INFO
+											State.Toast.Message = `${abstractionsReviewsCommentsSearch.filterexcludeindexes.length} local results filtered out`
+										}}
+										updatemetadatamodel={(value: any) => {
+											if (abstractionsReviewsCommentsSearch.updatemedataModel) {
+												abstractionsReviewsCommentsSearch.updatemedataModel(value)
+											}
+										}}
+										updatequeryconditions={(value) => {
+											abstractionsReviewsCommentsSearch.queryconditions = value
+										}}
+										hidequerypanel={() => (abstractionsReviewsCommentsSearch.showquerypanel = false)}
+									></QueryPanel>
 								{/await}
 							</section>
-						{:else}
-							<div
-								class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
-									? 'bg-gray-700'
-									: 'bg-gray-200'}"
-							>
-								<span class="flex self-center text-lg"> Comment on your abstraction checks. </span>
-							</div>
 						{/if}
-					{/if}
-				</main>
-			{:catch e}
-				{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
-					<div class="flex h-full w-full flex-[9.5] justify-center">
-						<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
-					</div>
+
+						{#if !abstractionsReviewsCommentsSearch.showquerypanel || windowWidth > 2000}
+							{#if abstractionsReviewsCommentsSearch.searchresults!.length > 0}
+								<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+									{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+										<ViewHeaderData
+											title={'Abstractions checks comments'}
+											view={abstractionsReviewsCommentsSearch.view}
+											themecolor={State.ThemeColor.value}
+											theme={State.Theme.value}
+											updateview={(value) => (abstractionsReviewsCommentsSearch.view = value)}
+										></ViewHeaderData>
+									{/await}
+									{#await import('$lib/components/View/AbstractionsReviewsComments/Data/Component.svelte') then { default: ViewAbstractionsReviewsCommentsData }}
+										<ViewAbstractionsReviewsCommentsData
+											metadatamodel={abstractionsReviewsCommentsSearch.searchmetadatamodel}
+											data={abstractionsReviewsCommentsSearch.searchresults}
+											themecolor={State.ThemeColor.value}
+											theme={State.Theme.value}
+											{telemetry}
+											addclickcolumn={false}
+											view={abstractionsReviewsCommentsSearch.view}
+											updatemetadatamodel={(value: any) => {
+												if (abstractionsReviewsCommentsSearch.updatemedataModel) {
+													abstractionsReviewsCommentsSearch.updatemedataModel(value)
+												}
+											}}
+											filterexcludeindexes={abstractionsReviewsCommentsSearch.filterexcludeindexes}
+										></ViewAbstractionsReviewsCommentsData>
+									{/await}
+								</section>
+							{:else}
+								<div
+									class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+										? 'bg-gray-700'
+										: 'bg-gray-200'}"
+								>
+									<span class="flex self-center text-lg"> Comment on your abstraction checks. </span>
+								</div>
+							{/if}
+						{/if}
+					</main>
+				{:catch e}
+					{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
+						<div class="flex h-full w-full flex-[9.5] justify-center">
+							<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
+						</div>
+					{/await}
 				{/await}
-			{/await}
+			{/if}
 		</main>
 
 		{#if State.Session.session?.iam_credential?.directory_id && datum.id}
 			<footer class="flex w-full gap-x-1 pb-2 pl-2 pr-2">
 				<textarea
-					class="textarea flex-1 max-h-[50vh] {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+					class="textarea max-h-[50vh] flex-1 {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
 						? 'textarea-primary'
 						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
 							? 'textarea-secondary'

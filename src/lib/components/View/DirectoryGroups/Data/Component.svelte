@@ -421,7 +421,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -568,15 +568,15 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 0)}
-								{@render datumdisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdisplayname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.Description, 0)}
-								{@render datumdescription(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdescription(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.Data, 0)}
-								{@render datumdata(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdata(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}

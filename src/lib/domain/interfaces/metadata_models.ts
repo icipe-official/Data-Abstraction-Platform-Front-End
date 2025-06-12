@@ -1,5 +1,24 @@
 import { Domain, MetadataModel } from '$lib'
 
+export interface ViewSearch {
+	context?: string
+	telemetry?: Domain.Interfaces.ITelemetry
+	authcontextdirectorygroupid?: string
+	search?: Search
+	queryconditions?: MetadataModel.QueryConditions[]
+	quicksearchquerycondition?: MetadataModel.QueryConditions
+	searchmetadatamodel?: any
+	searchresults?: any[]
+	filterexcludeindexes?: number[]
+	getdisplaydataexecuted?: boolean
+	getdisplaydata?: () => Promise<void>
+	updatemedataModel?: (value: any) => void
+	searchdata?: () => Promise<void>
+	view?: 'table' | 'list' | 'detailed' | 'simple'
+	showquerypanel?: boolean
+	selectedindexes?: number[]
+}
+
 /**
  *
  */

@@ -385,7 +385,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -528,11 +528,11 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DisplayName, 0)}
-								{@render datumdisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdisplayname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.Data, 0)}
-								{@render datumdata(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdata(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}
@@ -591,12 +591,7 @@
 {/snippet}
 
 {#snippet datumdata(dIndex: number, joinDepth: number = 0)}
-	{@const fieldData = getDatumFieldData(
-		dIndex,
-		Domain.Entities.Directory.RepositoryName,
-		Domain.Entities.Directory.FieldColumn.Data,
-		joinDepth
-	)}
+	{@const fieldData = getDatumFieldData(dIndex, Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.Data, joinDepth)}
 
 	{#if Array.isArray(fieldData)}
 		<span>

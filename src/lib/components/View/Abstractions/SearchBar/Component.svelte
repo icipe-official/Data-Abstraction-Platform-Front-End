@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Domain, MetadataModel, Utils } from '$lib'
+	import { Domain, Json, MetadataModel, Utils } from '$lib'
 
 	const COMPONENT_NAME = 'view-abstractions-search-bar'
 
@@ -29,7 +29,7 @@
 		joindepth = 0
 	}: Props = $props()
 
-	let viewQueryCondition = $derived(JSON.parse(JSON.stringify(querycondition)))
+	let viewQueryCondition: MetadataModel.QueryConditions = $derived(JSON.parse(JSON.stringify(querycondition)))
 
 	let abstractionsQCKey = $derived(
 		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(metadatamodel, Domain.Entities.Abstractions.RepositoryName, joindepth)
@@ -118,26 +118,131 @@
 		}
 	}
 
-	function getFieldGroupByFieldColumnName(tableCollectionName: string, fieldColumnName: string, joinDepth: number = 0) {
-		let fieldGroup: any
-
-		MetadataModel.ForEachFieldGroup(metadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === joinDepth &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === tableCollectionName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === fieldColumnName
-			) {
-				fieldGroup = JSON.parse(JSON.stringify(property))
-				return true
-			}
-		})
-
-		return fieldGroup
-	}
-
 	let showFilterPanel: boolean = $state(false)
 
 	let windowWidth: number = $state(0)
+
+	let completedQCKey = $derived(
+		Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			metadatamodel,
+			Domain.Entities.Abstractions.FieldColumn.Completed,
+			Domain.Entities.Abstractions.RepositoryName,
+			joindepth
+		)
+	)
+	let completed: boolean | undefined = $derived.by(() => {
+		if (completedQCKey) {
+			const queryCondtion = viewQueryCondition[completedQCKey.qcKey]
+			if (queryCondtion) {
+				const value = Json.GetValueInObject(
+					queryCondtion,
+					`${MetadataModel.QcProperties.FG_FILTER_CONDITION}[0][0].${MetadataModel.FConditionProperties.VALUE}.${MetadataModel.FSelectProperties.VALUE}`
+				)
+
+				if (typeof value === 'boolean') {
+					return value
+				}
+			}
+		}
+
+		return undefined
+	})
+	function handleUpdateCompleted() {
+		if (!completedQCKey) {
+			return
+		}
+		if (completed === true) {
+			completed = false
+		} else if (completed == false) {
+			completed = undefined
+		} else {
+			completed = true
+		}
+
+		if (typeof completed === 'boolean') {
+			viewQueryCondition[completedQCKey.qcKey] = {
+				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: completedQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: completedQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+					[
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+							[MetadataModel.FConditionProperties.VALUE]: {
+								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.BOOLEAN,
+								[MetadataModel.FSelectProperties.VALUE]: completed
+							}
+						}
+					]
+				]
+			}
+		} else {
+			delete viewQueryCondition[completedQCKey.qcKey]
+		}
+
+		onupdatequerycondition()
+	}
+
+	let reviewedQCKey = $derived(
+		Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			metadatamodel,
+			Domain.Entities.Abstractions.FieldColumn.ReviewPass,
+			Domain.Entities.Abstractions.RepositoryName,
+			joindepth
+		)
+	)
+	let reviewed: boolean | undefined = $derived.by(() => {
+		if (reviewedQCKey) {
+			const queryCondtion = viewQueryCondition[reviewedQCKey.qcKey]
+			if (queryCondtion) {
+				const value = Json.GetValueInObject(
+					queryCondtion,
+					`${MetadataModel.QcProperties.FG_FILTER_CONDITION}[0][0].${MetadataModel.FConditionProperties.VALUE}.${MetadataModel.FSelectProperties.VALUE}`
+				)
+
+				if (typeof value === 'boolean') {
+					return value
+				}
+			}
+		}
+
+		return undefined
+	})
+	function handleUpdateReviewed() {
+		if (!reviewedQCKey) {
+			return
+		}
+		if (reviewed === true) {
+			reviewed = false
+		} else if (reviewed == false) {
+			reviewed = undefined
+		} else {
+			reviewed = true
+		}
+
+		if (typeof reviewed === 'boolean') {
+			viewQueryCondition[reviewedQCKey.qcKey] = {
+				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: reviewedQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: reviewedQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+					[
+						{
+							[MetadataModel.FConditionProperties.NEGATE]: false,
+							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+							[MetadataModel.FConditionProperties.VALUE]: {
+								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.BOOLEAN,
+								[MetadataModel.FSelectProperties.VALUE]: reviewed
+							}
+						}
+					]
+				]
+			}
+		} else {
+			delete viewQueryCondition[reviewedQCKey.qcKey]
+		}
+
+		onupdatequerycondition()
+	}
 </script>
 
 <svelte:window bind:innerWidth={windowWidth} />
@@ -202,6 +307,74 @@
 					: 'bg-white'} flex flex-col gap-y-6 rounded-lg p-2 shadow-md shadow-gray-800"
 			>
 				<section class="flex flex-1 flex-col gap-y-2">
+					<section class="flex gap-x-4">
+						{#if completedQCKey}
+							<span class="flex gap-x-1">
+								<span class="self-center font-bold italic">Completed?</span>
+								<button class="btn btn-md btn-circle self-center" onclick={handleUpdateCompleted} aria-label="Set Completed status">
+									{#if completed === true}
+										<!--mdi:check-circle source: https://icon-sets.iconify.design-->
+										<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+											<path
+												fill="var({Utils.Theme.GetColor(themecolor)})"
+												d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10s10-4.5 10-10S17.5 2 12 2m-2 15l-5-5l1.41-1.41L10 14.17l7.59-7.59L19 8z"
+											/>
+										</svg>
+									{:else if completed === false}
+										<!--mdi:close-circle source: https://icon-sets.iconify.design-->
+										<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+											<path
+												fill="var({Utils.Theme.GetColor(themecolor)})"
+												d="M12 2c5.53 0 10 4.47 10 10s-4.47 10-10 10S2 17.53 2 12S6.47 2 12 2m3.59 5L12 10.59L8.41 7L7 8.41L10.59 12L7 15.59L8.41 17L12 13.41L15.59 17L17 15.59L13.41 12L17 8.41z"
+											/>
+										</svg>
+									{:else}
+										<!--mdi:do-not-enter source: https://icon-sets.iconify.design-->
+										<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+											<path
+												fill="var({Utils.Theme.GetColor(themecolor)})"
+												d="M17 13H7v-2h10m-5-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2"
+											/>
+										</svg>
+									{/if}
+								</button>
+							</span>
+						{/if}
+
+						{#if reviewedQCKey}
+							<span class="flex gap-x-1">
+								<span class="self-center font-bold italic">Checks Passed?</span>
+								<button class="btn btn-md btn-circle self-center" onclick={handleUpdateReviewed} aria-label="Set reviewed status">
+									{#if reviewed === true}
+										<!--mdi:check-circle source: https://icon-sets.iconify.design-->
+										<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+											<path
+												fill="var({Utils.Theme.GetColor(themecolor)})"
+												d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10s10-4.5 10-10S17.5 2 12 2m-2 15l-5-5l1.41-1.41L10 14.17l7.59-7.59L19 8z"
+											/>
+										</svg>
+									{:else if reviewed === false}
+										<!--mdi:close-circle source: https://icon-sets.iconify.design-->
+										<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+											<path
+												fill="var({Utils.Theme.GetColor(themecolor)})"
+												d="M12 2c5.53 0 10 4.47 10 10s-4.47 10-10 10S2 17.53 2 12S6.47 2 12 2m3.59 5L12 10.59L8.41 7L7 8.41L10.59 12L7 15.59L8.41 17L12 13.41L15.59 17L17 15.59L13.41 12L17 8.41z"
+											/>
+										</svg>
+									{:else}
+										<!--mdi:do-not-enter source: https://icon-sets.iconify.design-->
+										<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+											<path
+												fill="var({Utils.Theme.GetColor(themecolor)})"
+												d="M17 13H7v-2h10m-5-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2"
+											/>
+										</svg>
+									{/if}
+								</button>
+							</span>
+						{/if}
+					</section>
+
 					{#if storageFilesQCKey}
 						<label class="input w-full">
 							{#if windowWidth > 1000}

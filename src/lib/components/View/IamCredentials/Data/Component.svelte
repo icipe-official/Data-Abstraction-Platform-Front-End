@@ -362,7 +362,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -525,31 +525,31 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidGivenName, 0)}
-								{@render datumiamcredentialgivenname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumiamcredentialgivenname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidFamilyName, 0)}
-								{@render datumiamcredentialfamilyname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumiamcredentialfamilyname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidPreferredUsername, 0)}
-								{@render datumiamcredentialusername(rowIndex)}
+								<span class="z-[0] p-2">{@render datumiamcredentialusername(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidEmail, 0)}
-								{@render datumiamcredentialemail(rowIndex)}
+								<span class="z-[0] p-2">{@render datumiamcredentialemail(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DisplayName, 1)}
-								{@render datumdirectorydisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdirectorydisplayname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 2)}
-								{@render datumgroupdisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumgroupdisplayname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.Description, 2)}
-								{@render datumgroupdescription(rowIndex)}
+								<span class="z-[0] p-2">{@render datumgroupdescription(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}

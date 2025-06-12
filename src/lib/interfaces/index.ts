@@ -1,3 +1,5 @@
+export * as AbstractionsReviewsComments from './abstractions_reviews_comments'
+export * as AbstractionsReviews from './abstractions_reviews'
 export * as Abstractions from './abstractions'
 export * as AbstractionsDirectoryGroups from './abstractions_directory_groups'
 export * as StorageFiles from './storage_files'

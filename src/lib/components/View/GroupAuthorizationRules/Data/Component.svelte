@@ -334,7 +334,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -481,15 +481,15 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.GroupAuthorizationRules.RepositoryName, Domain.Entities.GroupAuthorizationRules.FieldColumn.ID, 0)}
-								{@render datumruleid(rowIndex)}
+								<span class="z-[0] p-2">{@render datumruleid(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.GroupAuthorizationRules.RepositoryName, Domain.Entities.GroupAuthorizationRules.FieldColumn.RuleGroup, 0)}
-								{@render datumrulegroup(rowIndex)}
+								<span class="z-[0] p-2">{@render datumrulegroup(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.GroupAuthorizationRules.RepositoryName, Domain.Entities.GroupAuthorizationRules.FieldColumn.Description, 0)}
-								{@render datumdescription(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdescription(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}

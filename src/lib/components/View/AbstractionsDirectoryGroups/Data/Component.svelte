@@ -347,7 +347,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -494,15 +494,15 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.MetadataModels.RepositoryName, Domain.Entities.MetadataModels.FieldColumn.Name, 1)}
-								{@render datummodelname(rowIndex)}
+								<span class="z-[0] p-2">{@render datummodelname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 1)}
-								{@render datumgroupdisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumgroupdisplayname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.AbstractionsDirectoryGroups.RepositoryName, Domain.Entities.AbstractionsDirectoryGroups.FieldColumn.Description, 0)}
-								{@render datumdescription(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdescription(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}

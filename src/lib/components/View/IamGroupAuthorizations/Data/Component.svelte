@@ -361,7 +361,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -539,43 +539,43 @@
 
 							{#if viewContext === 'iam-credentials'}
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidGivenName, 1)}
-									{@render datumiamcredentialgivenname(rowIndex)}
+									<span class="z-[0] p-2">{@render datumiamcredentialgivenname(rowIndex)}</span>
 								{/if}
 
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidFamilyName, 1)}
-									{@render datumiamcredentialfamilyname(rowIndex)}
+									<span class="z-[0] p-2">{@render datumiamcredentialfamilyname(rowIndex)}</span>
 								{/if}
 
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidPreferredUsername, 1)}
-									{@render datumiamcredentialusername(rowIndex)}
+									<span class="z-[0] p-2">{@render datumiamcredentialusername(rowIndex)}</span>
 								{/if}
 
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 2)}
-									{@render datumdirectorygroupdisplayname(rowIndex)}
+									<span class="z-[0] p-2">{@render datumdirectorygroupdisplayname(rowIndex)}</span>
 								{/if}
 							{:else}
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.GroupRuleAuthorizations.RepositoryName, Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID, 1)}
-									{@render datumruleid(rowIndex)}
+									<span class="z-[0] p-2">{@render datumruleid(rowIndex)}</span>
 								{/if}
 
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.GroupRuleAuthorizations.RepositoryName, Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup, 1)}
-									{@render datumrulegroup(rowIndex)}
+									<span class="z-[0] p-2">{@render datumrulegroup(rowIndex)}</span>
 								{/if}
 
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 2)}
-									{@render datumdirectorygroupdisplayname(rowIndex)}
+									<span class="z-[0] p-2">{@render datumdirectorygroupdisplayname(rowIndex)}</span>
 								{/if}
 
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidGivenName, 1)}
-									{@render datumiamcredentialgivenname(rowIndex)}
+									<span class="z-[0] p-2">{@render datumiamcredentialgivenname(rowIndex)}</span>
 								{/if}
 
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidFamilyName, 1)}
-									{@render datumiamcredentialfamilyname(rowIndex)}
+									<span class="z-[0] p-2">{@render datumiamcredentialfamilyname(rowIndex)}</span>
 								{/if}
 
 								{#if getFieldGroupByFieldColumnName(Domain.Entities.IamCredentials.RepositoryName, Domain.Entities.IamCredentials.FieldColumn.OpenidPreferredUsername, 1)}
-									{@render datumiamcredentialusername(rowIndex)}
+									<span class="z-[0] p-2">{@render datumiamcredentialusername(rowIndex)}</span>
 								{/if}
 							{/if}
 						</section>

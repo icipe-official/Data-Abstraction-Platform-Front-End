@@ -350,7 +350,7 @@
 				{/each}
 			</main>
 		{:else}
-			<main class="relative z-[1] grid overflow-auto p-2" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
+			<main class="relative z-[1] grid overflow-auto" style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};">
 				<header
 					class="sticky top-0 z-[2] grid {theme === Domain.Entities.Theme.Theme.DARK
 						? switchbackground
@@ -413,7 +413,6 @@
 						{@render headerFieldColumn('Model ID')}
 					{/if}
 
-
 					{#if getFieldGroupByFieldColumnName(Domain.Entities.MetadataModels.RepositoryName, Domain.Entities.MetadataModels.FieldColumn.Name, 0)}
 						{@render headerFieldColumn('Model Name')}
 					{/if}
@@ -421,7 +420,6 @@
 					{#if getFieldGroupByFieldColumnName(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DisplayName, 1)}
 						{@render headerFieldColumn('Owner Name')}
 					{/if}
-
 
 					{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 1)}
 						{@render headerFieldColumn('Group Name')}
@@ -503,20 +501,19 @@
 							</section>
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.MetadataModels.RepositoryName, Domain.Entities.MetadataModels.FieldColumn.ID, 0)}
-								{@render datumid(rowIndex)}
+								<span class="z-[0] p-2">{@render datumid(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.MetadataModels.RepositoryName, Domain.Entities.MetadataModels.FieldColumn.Name, 0)}
-								{@render datummodelname(rowIndex)}
+								<span class="z-[0] p-2">{@render datummodelname(rowIndex)}</span>
 							{/if}
 
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DisplayName, 1)}
-								{@render datumdirectorydisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumdirectorydisplayname(rowIndex)}</span>
 							{/if}
 
-
 							{#if getFieldGroupByFieldColumnName(Domain.Entities.DirectoryGroups.RepositoryName, Domain.Entities.DirectoryGroups.FieldColumn.DisplayName, 1)}
-								{@render datumgroupdisplayname(rowIndex)}
+								<span class="z-[0] p-2">{@render datumgroupdisplayname(rowIndex)}</span>
 							{/if}
 						</section>
 					{/each}
@@ -625,9 +622,13 @@
 	</span>
 {/snippet}
 
-
 {#snippet datumid(dIndex: number, joinDepth: number = 0)}
-	{@const fieldData = getDatumFieldData(dIndex, Domain.Entities.MetadataModels.RepositoryName, Domain.Entities.MetadataModels.FieldColumn.ID, joinDepth)}
+	{@const fieldData = getDatumFieldData(
+		dIndex,
+		Domain.Entities.MetadataModels.RepositoryName,
+		Domain.Entities.MetadataModels.FieldColumn.ID,
+		joinDepth
+	)}
 
 	<span>
 		{#if Array.isArray(fieldData) && fieldData.length > 0}
