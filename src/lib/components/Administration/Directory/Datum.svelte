@@ -25,16 +25,18 @@
 	let authContextDirectoryGroupID = $derived(directorygroupid)
 	let verboseResponse = $derived(State.VerboseResponse.value)
 
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
-
 	onMount(() => {
 		;(async () => {
-			datum = await Interfaces.Directory.Datum(
-				authedFetch,
-				{ metadata_model: JSON.parse(JSON.stringify(metadatamodel)), datum: JSON.parse(JSON.stringify(d)) },
-				telemetry,
-				directorygroupid
-			)
+			datum = await Interfaces.Directory.Datum({
+				fetchedData: {
+					metadata_model: JSON.parse(JSON.stringify(metadatamodel)),
+					datum: JSON.parse(JSON.stringify(d))
+				},
+				verboseResponse: State.VerboseResponse.value,
+				currentDirectoryGroupID: directorygroupid!,
+				directoryGroupID: directorygroupid,
+				context: COMPONENT_NAME
+			})
 
 			if (d) {
 				datum.previousDatum = JSON.parse(JSON.stringify(d))
@@ -124,7 +126,7 @@
 		{/if}
 	</main>
 
-	{#if State.Session.session && State.Session.tokens && directorygroupid}
+	{#if State.Session.session  && directorygroupid}
 		<footer class="join w-full pb-2">
 			{#if (datum.id && datum.update) || datum.delete}
 				<button
@@ -138,12 +140,7 @@
 							State.Loading.value = `Updating ${Domain.Entities.Directory.RepositoryName}`
 
 							try {
-								const toastData = await datum.update(authedFetch, directorygroupid!, {
-									componentName: COMPONENT_NAME,
-									telemetry,
-									authContextDirectoryGroupID,
-									verboseResponse
-								})
+								const toastData = await datum.update()
 
 								State.Toast.Type = toastData.Type
 								State.Toast.Message = toastData.Message
@@ -160,12 +157,7 @@
 								State.Loading.value = `Creating new ${Domain.Entities.Directory.RepositoryName}`
 
 								try {
-									const toastData = await datum.create(authedFetch, directorygroupid!, {
-										componentName: COMPONENT_NAME,
-										telemetry,
-										authContextDirectoryGroupID,
-										verboseResponse
-									})
+									const toastData = await datum.create()
 
 									State.Toast.Type = toastData.Type
 									State.Toast.Message = toastData.Message
@@ -221,12 +213,7 @@
 			onclick={async () => {
 				State.Loading.value = `Deleting ${Domain.Entities.Directory.RepositoryName}`
 				try {
-					const toastData = await datum.delete!(authedFetch, directorygroupid!, {
-						componentName: COMPONENT_NAME,
-						telemetry,
-						authContextDirectoryGroupID,
-						verboseResponse
-					})
+					const toastData = await datum.delete!()
 
 					State.Toast.Type = toastData.Type
 					State.Toast.Message = toastData.Message

@@ -278,9 +278,9 @@ Props:
 			</button>
 		</header>
 
-		<div class="divider mb-0 mt-0"></div>
+		<div class="divider mt-0 mb-0"></div>
 
-		<main class="flex h-fit max-h-fit flex-col gap-y-1 overflow-y-auto overflow-x-hidden">
+		<main class="flex h-fit max-h-fit flex-col gap-y-1 overflow-x-hidden overflow-y-auto">
 			{#each viewQueryConditions as _, qIndex}
 				<button
 					class="btn btn-sm w-full p-1 {queryConditionCurrentTabIndex === qIndex
@@ -299,7 +299,7 @@ Props:
 					<div class="flex w-full flex-1 justify-between">
 						<span class="flex h-fit self-center italic {!expandAside && !pinTabs ? 'w-full justify-center' : ''}">
 							{#if expandAside || pinTabs}
-								<span class="self-center break-words text-sm">Query Condition-</span>
+								<span class="self-center text-sm break-words">Query Condition-</span>
 							{/if}
 							<span class="self-center text-lg font-bold">{qIndex + 1}</span>
 						</span>
@@ -334,7 +334,7 @@ Props:
 			{/each}
 		</main>
 
-		<div class="divider mb-0 mt-0"></div>
+		<div class="divider mt-0 mb-0"></div>
 
 		<button
 			class="btn btn-sm btn-ghost w-full"
@@ -388,7 +388,7 @@ Props:
 				</button>
 			</header>
 
-			<div class="divider mb-0 mt-0"></div>
+			<div class="divider mt-0 mb-0"></div>
 
 			{#await import('./FieldGroup/View/Component.svelte') then { default: FieldGroupView }}
 				<FieldGroupView

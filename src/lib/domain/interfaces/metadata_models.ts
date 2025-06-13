@@ -81,6 +81,16 @@ export interface IFieldAnyGetMetadataModel {
 export interface Datum {
 	previousDatum?: any
 
+	fetch: Domain.Interfaces.Fetch
+
+	context: string
+
+	authcontextdirectorygroupid?: string
+
+	verboseresponse?: boolean
+
+	currentdirectorygroupid: string
+
 	id?: string
 
 	name: string
@@ -105,36 +115,9 @@ export interface Datum {
 
 	reset?: () => void
 
-	create?: (
-		authFetch: Domain.Interfaces.AuthenticatedFetch,
-		directoryGroupID: string,
-		opts?: {
-			componentName?: string
-			telemetry?: Domain.Interfaces.ITelemetry
-			authContextDirectoryGroupID?: string
-			verboseResponse?: boolean
-		}
-	) => Promise<Domain.Entities.State.Toast>
-	update?: (
-		authFetch: Domain.Interfaces.AuthenticatedFetch,
-		directoryGroupID: string,
-		opts?: {
-			componentName?: string
-			telemetry?: Domain.Interfaces.ITelemetry
-			authContextDirectoryGroupID?: string
-			verboseResponse?: boolean
-		}
-	) => Promise<Domain.Entities.State.Toast>
-	delete?: (
-		authFetch: Domain.Interfaces.AuthenticatedFetch,
-		directoryGroupID: string,
-		opts?: {
-			componentName?: string
-			telemetry?: Domain.Interfaces.ITelemetry
-			authContextDirectoryGroupID?: string
-			verboseResponse?: boolean
-		}
-	) => Promise<Domain.Entities.State.Toast>
+	create?: () => Promise<Domain.Entities.State.Toast>
+	update?: () => Promise<Domain.Entities.State.Toast>
+	delete?: () => Promise<Domain.Entities.State.Toast>
 
 	telemetry?: Domain.Interfaces.ITelemetry
 }

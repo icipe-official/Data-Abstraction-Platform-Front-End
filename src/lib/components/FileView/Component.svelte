@@ -35,7 +35,7 @@
 	})
 </script>
 
-<div class="flex flex-1 flex-col overflow-hidden join">
+<div class="join flex flex-1 flex-col overflow-hidden">
 	{#if fileUrl.length > 0}
 		<main class="join-item flex flex-[9.5] justify-center overflow-auto">
 			{#if Array.isArray(storagefile.storage_file_mime_type) && storagefile.storage_file_mime_type.length > 0}
@@ -64,7 +64,15 @@
 			{/if}
 		</main>
 
-		<a class="join-item btn w-full {themecolor === Domain.Entities.Theme.Color.PRIMARY ? 'btn-primary' : themecolor === Domain.Entities.Theme.Color.SECONDARY ? 'btn-secondary' : 'btn-accent'} flex gap-x-1 self-center" href={fileUrl} target="_blank">
+		<a
+			class="join-item btn w-full {themecolor === Domain.Entities.Theme.Color.PRIMARY
+				? 'btn-primary'
+				: themecolor === Domain.Entities.Theme.Color.SECONDARY
+					? 'btn-secondary'
+					: 'btn-accent'} flex gap-x-1 self-center"
+			href={fileUrl}
+			target="_blank"
+		>
 			<span>open in new window</span>
 			<!--mdi:open-in-new source: https://icon-sets.iconify.design-->
 			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"

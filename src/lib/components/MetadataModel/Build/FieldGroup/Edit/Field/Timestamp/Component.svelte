@@ -30,7 +30,7 @@ Props:
 		updatevalue(fieldDateTimeFormat)
 	})
 
-    /**
+	/**
 	 * Error if {@linkcode fieldgroup} {@linkcode MetadataModel.FgProperties.FIELD_DATETIME_FORMAT} length is not valid.
 	 */
 	let fieldDateTimeFormatLengthNotValid: string | null = $derived.by(() => {
@@ -41,7 +41,7 @@ Props:
 		return null
 	})
 
-    /**
+	/**
 	 * Combine {@linkcode fieldgroup} {@linkcode MetadataModel.FgProperties.FIELD_DATETIME_FORMAT} errors.
 	 */
 	let fieldDateTimeFormatError: string[] = $derived.by(() => {

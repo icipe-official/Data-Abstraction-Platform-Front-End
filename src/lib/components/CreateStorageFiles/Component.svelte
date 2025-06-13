@@ -48,7 +48,7 @@
 			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.DEBUG, 'uploading file', 'formData', formData)
 			State.Loading.value = `uploading ${noOfFilesProcessed}/${files.length} files..`
 			try {
-				const fetchResponse = await new Interfaces.AuthenticatedFetch.Client(true).Fetch(fetchUrl, {
+				const fetchResponse = await fetch(fetchUrl, {
 					method: 'POST',
 					credentials: 'include',
 					body: formData
@@ -117,7 +117,7 @@
 	}
 </script>
 
-<div class="not-only-of-type:overflow-hidden flex flex-1 flex-col gap-y-6">
+<div class="flex flex-1 flex-col gap-y-6 not-only-of-type:overflow-hidden">
 	<main class="flex flex-1 flex-col gap-y-4 overflow-hidden">
 		<input
 			class="file-input w-full {themecolor === Domain.Entities.Theme.Color.PRIMARY
@@ -131,7 +131,7 @@
 		/>
 
 		<section class="flex flex-col">
-			<div class="divider mb-1 mt-0">
+			<div class="divider mt-0 mb-1">
 				<span class="self-center">tags</span>
 
 				<span class="join">
@@ -233,7 +233,7 @@
 				></Component.Pagination>
 			</footer>
 
-			<div class="divider mb-0 mt-0"></div>
+			<div class="divider mt-0 mb-0"></div>
 		</section>
 	</main>
 

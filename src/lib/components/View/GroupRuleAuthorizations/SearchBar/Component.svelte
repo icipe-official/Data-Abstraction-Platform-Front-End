@@ -84,8 +84,6 @@
 		}
 	}
 
-	
-
 	let showFilterPanel: boolean = $state(false)
 
 	let windowWidth: number = $state(0)

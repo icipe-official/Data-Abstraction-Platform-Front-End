@@ -13,32 +13,21 @@
 		return getContext(State.TelemetryContext.value)
 	})
 
+	let authContextDirectoryGroupID = $derived(data.directory_group_id)
+
 	onMount(() => {
-		if (data.tokens?.access_token && data.tokens?.refresh_token) {
-			State.Session.tokens = {
-				access_token: data.tokens.access_token,
-				refresh_token: data.tokens.refresh_token
-			}
-		} else {
-			State.Session.tokens = undefined
-		}
-
-		if (data.authentication_headers) {
-			State.AuthenticationHeaders.value = data.authentication_headers
-		} else {
-			State.AuthenticationHeaders.value = undefined
-		}
-
 		;(async () => {
-			datum = await Interfaces.Abstractions.Datum(
-				authedFetch,
-				{
+			datum = await Interfaces.Abstractions.Datum({
+				authContextDirectoryGroupID: data.directory_group_id,
+				fetchedData: {
 					metadata_model: JSON.parse(JSON.stringify(data.current_datum?.metadata_model)),
 					datum: JSON.parse(JSON.stringify(data.current_datum?.datum))
 				},
 				telemetry,
-				data.directory_group_id
-			)
+				currentDirectoryGroupID: data.directory_group_id!,
+				context: COMPONENT_NAME,
+				verboseResponse: State.VerboseResponse.value,
+			})
 
 			if (data.current_datum?.datum) {
 				datum.previousDatum = JSON.parse(JSON.stringify(data.current_datum.datum))
@@ -46,20 +35,8 @@
 		})()
 	})
 
-	let verboseResponse = $derived(State.VerboseResponse.value)
-	let authContextDirectoryGroupID = $derived(data.directory_group_id)
-
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
-
 	//@ts-expect-error
 	let datum: Domain.Interfaces.Abstractions.Datum = $state({})
-	$effect(() => {
-		if (data.current_datum?.datum) {
-			untrack(() => {
-				datum.previousDatum = JSON.parse(JSON.stringify(data.current_datum!.datum))
-			})
-		}
-	})
 
 	let noOfTags: number = $derived(Array.isArray(datum.tags) ? datum.tags.length : 0)
 
@@ -93,13 +70,6 @@
 		}
 	}
 
-	onMount(() => {
-		if (datum.id) {
-			abstractionsReviewsSearch = Interfaces.AbstractionsReviews.NewViewSearch(datum.id)
-			abstractionsReviewsCommentsSearch = Interfaces.AbstractionsReviewsComments.NewViewSearch(datum.id)
-		}
-	})
-
 	let abstractionsReviewsSearch = $state(Interfaces.AbstractionsReviews.NewViewSearch())
 
 	$effect(() => {
@@ -110,23 +80,15 @@
 			State.Session.session.iam_credential.id.length > 0
 		) {
 			untrack(() => {
-				abstractionsReviewsSearch.search = new Interfaces.MetadataModels.SearchData(
-					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-					new Interfaces.AuthenticatedFetch.Client(true)
-				)
 				abstractionsReviewsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				abstractionsReviewsSearch.abstractionsid = datum.id
 				abstractionsReviewsSearch.context = COMPONENT_NAME
 				abstractionsReviewsSearch.telemetry = telemetry
 
-				abstractionsReviewsSearch.search = new Interfaces.MetadataModels.SearchData(
-					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-					new Interfaces.AuthenticatedFetch.Client(true)
-				)
-				abstractionsReviewsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
-				abstractionsReviewsSearch.context = COMPONENT_NAME
-				abstractionsReviewsSearch.telemetry = telemetry
+				abstractionsReviewsCommentsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				abstractionsReviewsCommentsSearch.abstractionsid = datum.id
+				abstractionsReviewsCommentsSearch.context = COMPONENT_NAME
+				abstractionsReviewsCommentsSearch.telemetry = telemetry
 			})
 		}
 	})
@@ -164,8 +126,9 @@
 				abstractionReview
 			)
 
-			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+			const fetchResponse = await fetch(fetchUrl, {
 				method: 'POST',
+				credentials: 'include',
 				body: JSON.stringify([abstractionReview])
 			})
 
@@ -230,8 +193,9 @@
 				abstractionReviewComment
 			)
 
-			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+			const fetchResponse = await fetch(fetchUrl, {
 				method: 'POST',
+				credentials: 'include',
 				body: JSON.stringify([abstractionReviewComment])
 			})
 
@@ -981,7 +945,7 @@
 {/snippet}
 
 {#snippet updatedelete()}
-	{#if State.Session.session && State.Session.tokens && data.directory_group_id}
+	{#if State.Session.session && data.directory_group_id}
 		<footer class="join w-full pb-2">
 			{#if datum.update}
 				<button
@@ -994,12 +958,7 @@
 						State.Loading.value = `Updating ${Domain.Entities.Abstractions.RepositoryName}`
 
 						try {
-							const toastData = await datum.update!(authedFetch, data.directory_group_id!, {
-								componentName: COMPONENT_NAME,
-								telemetry,
-								authContextDirectoryGroupID,
-								verboseResponse
-							})
+							const toastData = await datum.update!()
 
 							State.Toast.Type = toastData.Type
 							State.Toast.Message = toastData.Message
@@ -1042,12 +1001,7 @@
 			onclick={async () => {
 				State.Loading.value = `Deleting ${Domain.Entities.Abstractions.RepositoryName}`
 				try {
-					const toastData = await datum.delete!(authedFetch, data.directory_group_id!, {
-						componentName: COMPONENT_NAME,
-						telemetry,
-						authContextDirectoryGroupID,
-						verboseResponse
-					})
+					const toastData = await datum.delete!()
 
 					State.Toast.Type = toastData.Type
 					State.Toast.Message = toastData.Message

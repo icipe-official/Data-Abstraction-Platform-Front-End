@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Component, Domain, Interfaces, MetadataModel, State, Utils } from '$lib'
+	import { Domain, Interfaces, MetadataModel, State, Utils } from '$lib'
+	import { untrack } from 'svelte'
 	import { ReassignTab } from './util'
 
 	const COMPONENT_NAME = 'administration-abstractions-reassign'
@@ -22,244 +23,144 @@
 
 	let updateDirectoryIDStep: number = $state(0)
 
-	let newAbstractorSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let newAbstractorSearch = $state(Interfaces.IamGroupAuthorizations.NewViewSearch())
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
-		}
+			untrack(() => {
+				newAbstractorSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				newAbstractorSearch.context = COMPONENT_NAME
+				newAbstractorSearch.telemetry = telemetry
+				newAbstractorSearch.addadditionalqueryconditions = [
+					(ctx) => {
+						let deactivatedOnQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.IamGroupAuthorizations.FieldColumn.DeactivatedOn,
+							Domain.Entities.IamGroupAuthorizations.RepositoryName,
+							0
+						)
 
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Iam.GroupAuthorizations}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Iam.GroupAuthorizations}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
+						if (!deactivatedOnQCKey) {
+							throw [500, `Search does not contain user role information`]
+						}
+
+						abstractorDirectoryIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.IamCredentials.FieldColumn.DirectoryID,
+							Domain.Entities.IamCredentials.RepositoryName,
+							1
+						)
+
+						if (!abstractorDirectoryIDQCKey) {
+							throw [500, `Search does not contain directory information`]
+						}
+
+						const groupAuthRuleIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID,
+							Domain.Entities.GroupRuleAuthorizations.RepositoryName,
+							1
+						)
+
+						const groupAuthRuleGroupQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup,
+							Domain.Entities.GroupRuleAuthorizations.RepositoryName,
+							1
+						)
+
+						if (!groupAuthRuleIDQCKey || !groupAuthRuleGroupQCKey) {
+							throw [500, `Search does not contain group roles information`]
+						}
+
+						const newAbstractorFilterAbstractorRoleQueryCondition: MetadataModel.QueryConditions = {
+							[deactivatedOnQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_LESS_THAN,
+											[MetadataModel.FConditionProperties.VALUE]: 0
+										}
+									]
+								]
+							},
+							[abstractorDirectoryIDQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									abstractorDirectoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									abstractorDirectoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_GREATER_THAN,
+											[MetadataModel.FConditionProperties.VALUE]: 0
+										}
+									]
+								]
+							},
+							[groupAuthRuleGroupQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRuleGroup.ABSTRACTIONS
+											}
+										}
+									]
+								]
+							},
+							[groupAuthRuleIDQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE
+											}
+										},
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE_OTHERS
+											}
+										}
+									]
+								]
+							}
+						}
+
+						return newAbstractorFilterAbstractorRoleQueryCondition
+					}
+				]
+			})
+		}
 	})
-	let newAbstractorQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let newAbstractorQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let newAbstractorFilterAbstractorRoleQueryCondition: MetadataModel.QueryConditions = $state({})
-	let newAbstractorSearchMetadataModel: any = $state({})
-	let newAbstractorSearchResults: any[] = $state([])
-	let newAbstractorSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayAbstractorExec: boolean = false
+
 	let abstractorDirectoryIDQCKey: Utils.MetadataModel.FieldGroupQueryProperties | undefined
-	async function getDisplayAbstractor() {
-		if (getDisplayAbstractorExec) {
-			return
-		}
-
-		if (!newAbstractorSearch) {
-			throw [401, 'Unauthorized']
-		}
-
-		if (Object.keys(newAbstractorSearch.searchmetadatamodel).length === 0) {
-			try {
-				await newAbstractorSearch.FetchMetadataModel(authContextDirectoryGroupID, 2, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.IamGroupAuthorizations.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
-
-		newAbstractorSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 20
-
-		newAbstractorSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(newAbstractorSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.IamGroupAuthorizations.RepositoryName
-			) {
-				if (property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.IamGroupAuthorizations.FieldColumn.IamCredentialsID) {
-					property[MetadataModel.FgProperties.DATABASE_DISTINCT] = true
-				}
-			}
-
-			return property
-		})
-
-		newAbstractorSearchMetadataModel = newAbstractorSearch.searchmetadatamodel
-
-		let deactivatedOnQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			newAbstractorSearch.searchmetadatamodel,
-			Domain.Entities.IamGroupAuthorizations.FieldColumn.DeactivatedOn,
-			Domain.Entities.IamGroupAuthorizations.RepositoryName,
-			0
-		)
-
-		if (!deactivatedOnQCKey) {
-			throw [500, `Search does not contain user role information`]
-		}
-
-		abstractorDirectoryIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			newAbstractorSearch.searchmetadatamodel,
-			Domain.Entities.IamCredentials.FieldColumn.DirectoryID,
-			Domain.Entities.IamCredentials.RepositoryName,
-			1
-		)
-
-		if (!abstractorDirectoryIDQCKey) {
-			throw [500, `Search does not contain directory information`]
-		}
-
-		const groupAuthRuleIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			newAbstractorSearch.searchmetadatamodel,
-			Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID,
-			Domain.Entities.GroupRuleAuthorizations.RepositoryName,
-			1
-		)
-
-		const groupAuthRuleGroupQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			newAbstractorSearch.searchmetadatamodel,
-			Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup,
-			Domain.Entities.GroupRuleAuthorizations.RepositoryName,
-			1
-		)
-
-		if (!groupAuthRuleIDQCKey || !groupAuthRuleGroupQCKey) {
-			throw [500, `Search does not contain group roles information`]
-		}
-
-		newAbstractorFilterAbstractorRoleQueryCondition = {
-			[deactivatedOnQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_LESS_THAN,
-							[MetadataModel.FConditionProperties.VALUE]: 0
-						}
-					]
-				]
-			},
-			[abstractorDirectoryIDQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
-					abstractorDirectoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
-					abstractorDirectoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_GREATER_THAN,
-							[MetadataModel.FConditionProperties.VALUE]: 0
-						}
-					]
-				]
-			},
-			[groupAuthRuleGroupQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
-					groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRuleGroup.ABSTRACTIONS
-							}
-						}
-					]
-				]
-			},
-			[groupAuthRuleIDQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
-					groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE
-							}
-						},
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE_OTHERS
-							}
-						}
-					]
-				]
-			}
-		}
-
-		try {
-			await searchAbstractor()
-			getDisplayAbstractorExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateAbstractorMetadataModel(value: any) {
-		newAbstractorSearchMetadataModel = value
-		if (newAbstractorSearch) {
-			newAbstractorSearch.searchmetadatamodel = newAbstractorSearchMetadataModel
-		}
-	}
-	async function searchAbstractor() {
-		if (!newAbstractorSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.IamGroupAuthorizations.RepositoryName}...`
-
-		try {
-			await newAbstractorSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(newAbstractorQueryConditions, [
-					newAbstractorQuickSearchQueryCondition,
-					newAbstractorFilterAbstractorRoleQueryCondition
-				]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				2,
-				false,
-				false,
-				undefined
-			)
-
-			newAbstractorSearchFilterExcludeIndexes = []
-			newAbstractorSearchResults = newAbstractorSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${newAbstractorSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.IamGroupAuthorizations.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showAbstractorQueryPanel: boolean = $state(false)
-	let selectedAbstractor: number[] = $state([])
-
-	let dataView: Component.View.View = $state('list')
 
 	let windowWidth: number = $state(0)
 
@@ -275,490 +176,182 @@
 
 	let storageFilesNumberMax: number | undefined = $state(undefined)
 
-	let abstractionsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let abstractionsSearch = $state(Interfaces.Abstractions.NewViewSearch())
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
+			untrack(() => {
+				abstractionsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				abstractionsSearch.context = COMPONENT_NAME
+				abstractionsSearch.telemetry = telemetry
+			})
 		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
 	})
-	let abstractionsQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let abstractionsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let abstractionsSearchMetadataModel: any = $state({})
-	let abstractionsSearchResults: any[] = $state([])
-	let abstractionsSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayAbstractionsExec: boolean = false
-	async function getDisplayAbstractions() {
-		if (getDisplayAbstractionsExec) {
-			return
-		}
 
-		if (!abstractionsSearch) {
-			throw [401, 'Unauthorized']
-		}
-
-		if (Object.keys(abstractionsSearch.searchmetadatamodel).length === 0) {
-			try {
-				await abstractionsSearch.FetchMetadataModel(authContextDirectoryGroupID, 2, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.Abstractions.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
-
-		abstractionsSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 50
-
-		abstractionsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(abstractionsSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.Abstractions.RepositoryName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.Abstractions.FieldColumn.LastUpdatedOn
-			) {
-				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-			}
-
-			return property
-		})
-
-		abstractionsSearchMetadataModel = abstractionsSearch.searchmetadatamodel
-
-		try {
-			await searchAbstractions()
-			getDisplayAbstractionsExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateAbstractionsMetadataModel(value: any) {
-		abstractionsSearchMetadataModel = value
-		if (abstractionsSearch) {
-			abstractionsSearch.searchmetadatamodel = abstractionsSearchMetadataModel
-		}
-	}
-	async function searchAbstractions() {
-		if (!abstractionsSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.Abstractions.RepositoryName}...`
-		try {
-			await abstractionsSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(abstractionsQueryConditions, [abstractionsQuickSearchQueryCondition]),
-				authContextDirectoryGroupID || directorygroupid,
-				authContextDirectoryGroupID || directorygroupid,
-				2,
-				false,
-				false,
-				undefined
-			)
-
-			abstractionsSearchFilterExcludeIndexes = []
-			abstractionsSearchResults = abstractionsSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${abstractionsSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.Abstractions.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showAbstractionsQueryPanel: boolean = $state(false)
-	let selectedAbstractions: number[] = $state([])
-
-	let directoryGroupsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let directoryGroupsSearch = $state(Interfaces.DirectoryGroups.NewViewSearch())
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
+			untrack(() => {
+				directoryGroupsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				directoryGroupsSearch.context = COMPONENT_NAME
+				directoryGroupsSearch.telemetry = telemetry
+			})
 		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
 	})
-	let directoryGroupsQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let directoryGroupsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let directoryGroupsSearchMetadataModel: any = $state({})
-	let directoryGroupsSearchResults: any[] = $state([])
-	let directoryGroupsSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayDirectoryGroupsExec: boolean = false
-	async function getDisplayDirectoryGroups() {
-		if (getDisplayDirectoryGroupsExec) {
-			return
-		}
 
-		if (!directoryGroupsSearch) {
-			throw [401, 'Unauthorized']
-		}
-
-		if (Object.keys(directoryGroupsSearch.searchmetadatamodel).length === 0) {
-			try {
-				await directoryGroupsSearch.FetchMetadataModel(authContextDirectoryGroupID, undefined, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.DirectoryGroups.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
-
-		directoryGroupsSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 20
-
-		directoryGroupsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(directoryGroupsSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.DirectoryGroups.RepositoryName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.DirectoryGroups.FieldColumn.LastUpdatedOn
-			) {
-				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-			}
-
-			return property
-		})
-
-		directoryGroupsSearchMetadataModel = directoryGroupsSearch.searchmetadatamodel
-
-		try {
-			await searchDirectoryGroups()
-			getDisplayDirectoryGroupsExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateDirectoryGroupsMetadataModel(value: any) {
-		directoryGroupsSearchMetadataModel = value
-		if (directoryGroupsSearch) {
-			directoryGroupsSearch.searchmetadatamodel = directoryGroupsSearchMetadataModel
-		}
-	}
-	async function searchDirectoryGroups() {
-		if (!directoryGroupsSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.DirectoryGroups.RepositoryName}...`
-		try {
-			await directoryGroupsSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(directoryGroupsQueryConditions, [directoryGroupsQuickSearchQueryCondition]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				undefined,
-				false,
-				false,
-				undefined
-			)
-
-			directoryGroupsSearchFilterExcludeIndexes = []
-			directoryGroupsSearchResults = directoryGroupsSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${directoryGroupsSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.DirectoryGroups.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showDirectoryGroupsQueryPanel: boolean = $state(false)
-	let selectedDirectoryGroups: number[] = $state([])
-
-	let iamGroupAuthorizationSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let iamGroupAuthorizationSearch = $state(Interfaces.IamGroupAuthorizations.NewViewSearch())
+	let directoryIDQCKey: Utils.MetadataModel.FieldGroupQueryProperties | undefined = $state(undefined)
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
-		}
+			untrack(() => {
+				iamGroupAuthorizationSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				iamGroupAuthorizationSearch.context = COMPONENT_NAME
+				iamGroupAuthorizationSearch.telemetry = telemetry
+				iamGroupAuthorizationSearch.viewContextIamCredentials = true
+				iamGroupAuthorizationSearch.addadditionalqueryconditions = [
+					(ctx) => {
+						let deactivatedOnQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.IamGroupAuthorizations.FieldColumn.DeactivatedOn,
+							Domain.Entities.IamGroupAuthorizations.RepositoryName,
+							0
+						)
 
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Iam.GroupAuthorizations}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Iam.GroupAuthorizations}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
-	})
-	let iamGroupAuthorizationQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let iamGroupAuthorizationQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let iamGroupAuthorizationFilterAbstractorRoleQueryCondition: MetadataModel.QueryConditions = $state({})
-	let iamGroupAuthorizationSearchMetadataModel: any = $state({})
-	let iamGroupAuthorizationSearchResults: any[] = $state([])
-	let iamGroupAuthorizationSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayIamGroupAuthorizationsExec: boolean = false
-	let directoryIDQCKey: Utils.MetadataModel.FieldGroupQueryProperties | undefined
-	async function getDisplayIamGroupAuthorizations() {
-		if (getDisplayIamGroupAuthorizationsExec) {
-			return
-		}
+						if (!deactivatedOnQCKey) {
+							throw [500, `Search does not contain user role information`]
+						}
 
-		if (!iamGroupAuthorizationSearch) {
-			throw [401, 'Unauthorized']
-		}
+						directoryIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.IamCredentials.FieldColumn.DirectoryID,
+							Domain.Entities.IamCredentials.RepositoryName,
+							1
+						)
 
-		if (Object.keys(iamGroupAuthorizationSearch.searchmetadatamodel).length === 0) {
-			try {
-				await iamGroupAuthorizationSearch.FetchMetadataModel(authContextDirectoryGroupID, 2, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.IamGroupAuthorizations.RepositoryName} metadata-model failed`
+						if (!directoryIDQCKey) {
+							throw [500, `Search does not contain directory information`]
+						}
 
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
+						const groupAuthRuleIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID,
+							Domain.Entities.GroupRuleAuthorizations.RepositoryName,
+							1
+						)
 
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
+						const groupAuthRuleGroupQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup,
+							Domain.Entities.GroupRuleAuthorizations.RepositoryName,
+							1
+						)
 
-		iamGroupAuthorizationSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 20
+						if (!groupAuthRuleIDQCKey || !groupAuthRuleGroupQCKey) {
+							throw [500, `Search does not contain group roles information`]
+						}
 
-		iamGroupAuthorizationSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			(property: any) => {
-				if (
-					property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-					property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.IamGroupAuthorizations.RepositoryName
-				) {
-					if (
-						property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.IamGroupAuthorizations.FieldColumn.IamCredentialsID
-					) {
-						property[MetadataModel.FgProperties.DATABASE_DISTINCT] = true
+						const iamGroupAuthorizationFilterAbstractorRoleQueryCondition: MetadataModel.QueryConditions = {
+							[deactivatedOnQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_LESS_THAN,
+											[MetadataModel.FConditionProperties.VALUE]: 0
+										}
+									]
+								]
+							},
+							[directoryIDQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_GREATER_THAN,
+											[MetadataModel.FConditionProperties.VALUE]: 0
+										}
+									]
+								]
+							},
+							[groupAuthRuleGroupQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRuleGroup.ABSTRACTIONS
+											}
+										}
+									]
+								]
+							},
+							[groupAuthRuleIDQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE
+											}
+										},
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE_OTHERS
+											}
+										}
+									]
+								]
+							}
+						}
+
+						return iamGroupAuthorizationFilterAbstractorRoleQueryCondition
 					}
-				}
-
-				return property
-			}
-		)
-
-		iamGroupAuthorizationSearchMetadataModel = iamGroupAuthorizationSearch.searchmetadatamodel
-
-		let deactivatedOnQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			Domain.Entities.IamGroupAuthorizations.FieldColumn.DeactivatedOn,
-			Domain.Entities.IamGroupAuthorizations.RepositoryName,
-			0
-		)
-
-		if (!deactivatedOnQCKey) {
-			throw [500, `Search does not contain user role information`]
-		}
-
-		directoryIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			Domain.Entities.IamCredentials.FieldColumn.DirectoryID,
-			Domain.Entities.IamCredentials.RepositoryName,
-			1
-		)
-
-		if (!directoryIDQCKey) {
-			throw [500, `Search does not contain directory information`]
-		}
-
-		const groupAuthRuleIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID,
-			Domain.Entities.GroupRuleAuthorizations.RepositoryName,
-			1
-		)
-
-		const groupAuthRuleGroupQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup,
-			Domain.Entities.GroupRuleAuthorizations.RepositoryName,
-			1
-		)
-
-		if (!groupAuthRuleIDQCKey || !groupAuthRuleGroupQCKey) {
-			throw [500, `Search does not contain group roles information`]
-		}
-
-		iamGroupAuthorizationFilterAbstractorRoleQueryCondition = {
-			[deactivatedOnQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_LESS_THAN,
-							[MetadataModel.FConditionProperties.VALUE]: 0
-						}
-					]
 				]
-			},
-			[directoryIDQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_GREATER_THAN,
-							[MetadataModel.FConditionProperties.VALUE]: 0
-						}
-					]
-				]
-			},
-			[groupAuthRuleGroupQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
-					groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRuleGroup.ABSTRACTIONS
-							}
-						}
-					]
-				]
-			},
-			[groupAuthRuleIDQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
-					groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE
-							}
-						},
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE_OTHERS
-							}
-						}
-					]
-				]
-			}
+			})
 		}
-
-		try {
-			await searchIamGroupAuthorizations()
-			getDisplayIamGroupAuthorizationsExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateIamGroupAuthorizationsMetadataModel(value: any) {
-		iamGroupAuthorizationSearchMetadataModel = value
-		if (iamGroupAuthorizationSearch) {
-			iamGroupAuthorizationSearch.searchmetadatamodel = iamGroupAuthorizationSearchMetadataModel
-		}
-	}
-	async function searchIamGroupAuthorizations() {
-		if (!iamGroupAuthorizationSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.IamGroupAuthorizations.RepositoryName}...`
-
-		try {
-			await iamGroupAuthorizationSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(iamGroupAuthorizationQueryConditions, [
-					iamGroupAuthorizationQuickSearchQueryCondition,
-					iamGroupAuthorizationFilterAbstractorRoleQueryCondition
-				]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				2,
-				false,
-				false,
-				undefined
-			)
-
-			iamGroupAuthorizationSearchFilterExcludeIndexes = []
-			iamGroupAuthorizationSearchResults = iamGroupAuthorizationSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${iamGroupAuthorizationSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.IamGroupAuthorizations.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showIamGroupAuthorizationsQueryPanel: boolean = $state(false)
-	let selectedIamGroupAuthorizations: number[] = $state([])
+	})
 
 	let updateAbstractionsDirectoryValid: boolean = $derived(
-		selectedAbstractor.length > 0 &&
-			(selectedIamGroupAuthorizations.length > 0 ||
-				selectedDirectoryGroups.length > 0 ||
-				selectedAbstractions.length > 0 ||
+		newAbstractorSearch.selectedindexes!.length > 0 &&
+			(iamGroupAuthorizationSearch.selectedindexes!.length > 0 ||
+				directoryGroupsSearch.selectedindexes!.length > 0 ||
+				abstractionsSearch.selectedindexes!.length > 0 ||
 				storageFilesTextSearchQuery.length > 0 ||
 				(typeof storageFilesNumberMin === 'number' && typeof storageFilesNumberMax === 'number'))
 	)
-
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
 
 	async function handleReassignAbstractions() {
 		if (!updateAbstractionsDirectoryValid || !directorygroupid) {
@@ -767,13 +360,13 @@
 
 		let updateAbstractionsDirectory: Domain.Entities.Abstractions.UpdateDirectory = {}
 
-		if (selectedIamGroupAuthorizations.length > 0 && directoryIDQCKey) {
-			for (const dIndex of selectedIamGroupAuthorizations) {
+		if (iamGroupAuthorizationSearch.selectedindexes!.length > 0 && directoryIDQCKey) {
+			for (const dIndex of iamGroupAuthorizationSearch.selectedindexes!) {
 				const directoryID = MetadataModel.DatabaseGetColumnFieldValue(
-					JSON.parse(JSON.stringify(iamGroupAuthorizationSearchMetadataModel)),
+					JSON.parse(JSON.stringify(iamGroupAuthorizationSearch.searchmetadatamodel)),
 					directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
 					directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-					iamGroupAuthorizationSearchResults[dIndex]
+					iamGroupAuthorizationSearch.searchresults![dIndex]
 				)
 				if (Array.isArray(directoryID) && directoryID.length > 0) {
 					if (!Array.isArray(updateAbstractionsDirectory.directory_id)) {
@@ -784,9 +377,9 @@
 			}
 		}
 
-		if (selectedDirectoryGroups.length > 0) {
-			for (const dIndex of selectedDirectoryGroups) {
-				const d: Domain.Entities.DirectoryGroups.Interface = directoryGroupsSearchResults[dIndex]
+		if (directoryGroupsSearch.selectedindexes!.length > 0) {
+			for (const dIndex of directoryGroupsSearch.selectedindexes!) {
+				const d: Domain.Entities.DirectoryGroups.Interface = directoryGroupsSearch.searchresults![dIndex]
 				if (Array.isArray(d.id) && d.id.length > 0) {
 					if (!Array.isArray(updateAbstractionsDirectory.directory_group_id)) {
 						updateAbstractionsDirectory.directory_group_id = []
@@ -796,9 +389,9 @@
 			}
 		}
 
-		if (selectedAbstractions.length > 0) {
-			for (const dIndex of selectedAbstractions) {
-				const d: Domain.Entities.Abstractions.Interface = abstractionsSearchResults[dIndex]
+		if (abstractionsSearch.selectedindexes!.length > 0) {
+			for (const dIndex of abstractionsSearch.selectedindexes!) {
+				const d: Domain.Entities.Abstractions.Interface = abstractionsSearch.searchresults![dIndex]
 				if (Array.isArray(d.id) && d.id.length > 0) {
 					if (!Array.isArray(updateAbstractionsDirectory.abstractions_id)) {
 						updateAbstractionsDirectory.abstractions_id = []
@@ -832,12 +425,12 @@
 			return
 		}
 
-		if (abstractorDirectoryIDQCKey && selectedAbstractor.length > 0) {
+		if (abstractorDirectoryIDQCKey && newAbstractorSearch.selectedindexes!.length > 0) {
 			const directoryID = MetadataModel.DatabaseGetColumnFieldValue(
-				JSON.parse(JSON.stringify(newAbstractorSearchMetadataModel)),
+				JSON.parse(JSON.stringify(newAbstractorSearch.searchmetadatamodel)),
 				abstractorDirectoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
 				abstractorDirectoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				newAbstractorSearchResults[selectedAbstractor[0]]
+				newAbstractorSearch.searchresults![newAbstractorSearch.selectedindexes![0]]
 			)
 			if (Array.isArray(directoryID) && directoryID.length > 0) {
 				updateAbstractionsDirectory.new_directory_id = directoryID[0]
@@ -880,8 +473,9 @@
 				updateAbstractionsDirectory
 			)
 
-			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+			const fetchResponse = await fetch(fetchUrl, {
 				method: 'POST',
+				credentials: 'include',
 				body: JSON.stringify(updateAbstractionsDirectory)
 			})
 
@@ -895,7 +489,7 @@
 				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
 				State.Toast.Message = toastData.message
 				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
-				selectedIamGroupAuthorizations = []
+				iamGroupAuthorizationSearch.selectedindexes = []
 			} else {
 				handleError(fetchResponse.status, fetchData)
 			}
@@ -908,7 +502,7 @@
 		}
 	}
 
-    function handleError(e: any, defaultError?: string) {
+	function handleError(e: any, defaultError?: string) {
 		State.Toast.Type = Domain.Entities.Toast.Type.ERROR
 		State.Toast.Message = []
 		if (defaultError) {
@@ -991,101 +585,113 @@
 			: 'bg-gray-200'} rounded-lg p-2"
 	>
 		{#if updateDirectoryIDStep === 0}
-			{#await getDisplayAbstractor()}
-				{@render awaitloading()}
-			{:then}
-				<header class="z-[2] flex justify-center">
-					{#await import('$lib/components/View/IamGroupAuthorizations/SearchBar/Component.svelte') then { default: ViewIamGroupAuthorizationsSearchBar }}
-						<div class="max-md:w-full md:w-[60%]">
-							<ViewIamGroupAuthorizationsSearchBar
-								metadatamodel={newAbstractorSearchMetadataModel}
-								{themecolor}
-								theme={State.Theme.value}
-								{telemetry}
-								querycondition={newAbstractorQuickSearchQueryCondition}
-								updatequerycondition={(value) => {
-									newAbstractorQuickSearchQueryCondition = value
-								}}
-								showquerypanel={() => {
-									showAbstractorQueryPanel = !showAbstractorQueryPanel
-								}}
-								search={() => {
-									searchAbstractor()
-								}}
-							></ViewIamGroupAuthorizationsSearchBar>
-						</div>
-					{/await}
-				</header>
-
-				<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-					{#if showAbstractorQueryPanel}
-						<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-							{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-								<QueryPanel
+			{#if newAbstractorSearch.getdisplaydata}
+				{#await newAbstractorSearch.getdisplaydata()}
+					{@render awaitloading()}
+				{:then}
+					<header class="z-[2] flex justify-center">
+						{#await import('$lib/components/View/IamGroupAuthorizations/SearchBar/Component.svelte') then { default: ViewIamGroupAuthorizationsSearchBar }}
+							<div class="max-md:w-full md:w-[60%]">
+								<ViewIamGroupAuthorizationsSearchBar
+									metadatamodel={newAbstractorSearch.searchmetadatamodel}
 									{themecolor}
 									theme={State.Theme.value}
 									{telemetry}
-									metadatamodel={newAbstractorSearchMetadataModel}
-									data={newAbstractorSearchResults}
-									queryconditions={newAbstractorQueryConditions}
-									filterexcludeindexes={newAbstractorSearchFilterExcludeIndexes}
-									updatefilterexcludeindexes={(value) => {
-										newAbstractorSearchFilterExcludeIndexes = value
-										State.Toast.Type = Domain.Entities.Toast.Type.INFO
-										State.Toast.Message = `${newAbstractorSearchFilterExcludeIndexes.length} local results filtered out`
+									querycondition={newAbstractorSearch.quicksearchquerycondition}
+									updatequerycondition={(value) => {
+										newAbstractorSearch.quicksearchquerycondition = value
 									}}
-									updatemetadatamodel={updateAbstractorMetadataModel}
-									updatequeryconditions={(value) => {
-										newAbstractorQueryConditions = value
+									showquerypanel={() => {
+										newAbstractorSearch.showquerypanel = !newAbstractorSearch.showquerypanel
 									}}
-									hidequerypanel={() => (showAbstractorQueryPanel = false)}
-								></QueryPanel>
-							{/await}
-						</section>
-					{/if}
+									search={() => {
+										if (newAbstractorSearch.searchdata) {
+											newAbstractorSearch.searchdata()
+										}
+									}}
+								></ViewIamGroupAuthorizationsSearchBar>
+							</div>
+						{/await}
+					</header>
 
-					{#if !showAbstractorQueryPanel || windowWidth > 1000}
-						<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-							<section class="z-[2] flex w-full">
-								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-									<div class="h-fit w-full flex-1 self-center">
-										<ViewHeaderData
-											title={'Abstractors'}
-											view={dataView}
-											{themecolor}
-											theme={State.Theme.value}
-											updateview={(value) => (dataView = value)}
-										></ViewHeaderData>
-									</div>
-								{/await}
-							</section>
-
-							<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-								{#await import('$lib/components/View/IamGroupAuthorizations/Data/Component.svelte') then { default: ViewIamGroupAuthorizationsData }}
-									<ViewIamGroupAuthorizationsData
-										metadatamodel={newAbstractorSearchMetadataModel}
-										data={newAbstractorSearchResults}
+					<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+						{#if newAbstractorSearch.showquerypanel}
+							<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+								{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+									<QueryPanel
 										{themecolor}
 										theme={State.Theme.value}
 										{telemetry}
-										addclickcolumn={false}
-										addselectcolumn={true}
-										multiselectcolumns={false}
-										view={dataView}
-										updatemetadatamodel={updateAbstractorMetadataModel}
-										filterexcludeindexes={newAbstractorSearchFilterExcludeIndexes}
-										selecteddataindexes={selectedAbstractor}
-										updateselecteddataindexes={(value) => (selectedAbstractor = value)}
-										viewContext={'iam-credentials'}
-									></ViewIamGroupAuthorizationsData>
+										metadatamodel={newAbstractorSearch.searchmetadatamodel}
+										data={newAbstractorSearch.searchresults}
+										queryconditions={newAbstractorSearch.queryconditions}
+										filterexcludeindexes={newAbstractorSearch.filterexcludeindexes}
+										updatefilterexcludeindexes={(value) => {
+											newAbstractorSearch.filterexcludeindexes = value
+											State.Toast.Type = Domain.Entities.Toast.Type.INFO
+											State.Toast.Message = `${newAbstractorSearch.filterexcludeindexes.length} local results filtered out`
+										}}
+										updatemetadatamodel={(value: any) => {
+											if (newAbstractorSearch.updatemedataModel) {
+												newAbstractorSearch.updatemedataModel(value)
+											}
+										}}
+										updatequeryconditions={(value) => {
+											newAbstractorSearch.queryconditions = value
+										}}
+										hidequerypanel={() => (newAbstractorSearch.showquerypanel = false)}
+									></QueryPanel>
 								{/await}
 							</section>
-						</section>
-					{/if}
-				</main>
-			{:catch e}
-				{@render awaiterror(e)}
-			{/await}
+						{/if}
+
+						{#if !newAbstractorSearch.showquerypanel || windowWidth > 1000}
+							<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+								<section class="z-[2] flex w-full">
+									{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+										<div class="h-fit w-full flex-1 self-center">
+											<ViewHeaderData
+												title={'Abstractors'}
+												view={newAbstractorSearch.view}
+												{themecolor}
+												theme={State.Theme.value}
+												updateview={(value) => (newAbstractorSearch.view = value)}
+											></ViewHeaderData>
+										</div>
+									{/await}
+								</section>
+
+								<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+									{#await import('$lib/components/View/IamGroupAuthorizations/Data/Component.svelte') then { default: ViewIamGroupAuthorizationsData }}
+										<ViewIamGroupAuthorizationsData
+											metadatamodel={newAbstractorSearch.searchmetadatamodel}
+											data={newAbstractorSearch.searchresults}
+											{themecolor}
+											theme={State.Theme.value}
+											{telemetry}
+											addclickcolumn={false}
+											addselectcolumn={true}
+											multiselectcolumns={false}
+											view={newAbstractorSearch.view}
+											updatemetadatamodel={(value: any) => {
+												if (newAbstractorSearch.updatemedataModel) {
+													newAbstractorSearch.updatemedataModel(value)
+												}
+											}}
+											filterexcludeindexes={newAbstractorSearch.filterexcludeindexes}
+											selecteddataindexes={newAbstractorSearch.selectedindexes}
+											updateselecteddataindexes={(value) => (newAbstractorSearch.selectedindexes = value)}
+											viewContext={'iam-credentials'}
+										></ViewIamGroupAuthorizationsData>
+									{/await}
+								</section>
+							</section>
+						{/if}
+					</main>
+				{:catch e}
+					{@render awaiterror(e)}
+				{/await}
+			{/if}
 		{:else if updateDirectoryIDStep === 1}
 			<main class="flex flex-1 flex-col overflow-hidden">
 				<button
@@ -1099,100 +705,112 @@
 				</button>
 				{#if reassignTab === ReassignTab.DIRECTORY}
 					<section class="flex flex-1 flex-col gap-y-2 overflow-hidden p-2">
-						{#await getDisplayIamGroupAuthorizations()}
-							{@render awaitloading()}
-						{:then}
-							<header class="z-[2] flex justify-center">
-								{#await import('$lib/components/View/IamGroupAuthorizations/SearchBar/Component.svelte') then { default: ViewIamGroupAuthorizationsSearchBar }}
-									<div class="max-md:w-full md:w-[60%]">
-										<ViewIamGroupAuthorizationsSearchBar
-											metadatamodel={iamGroupAuthorizationSearchMetadataModel}
-											themecolor={State.ThemeColor.value}
-											theme={State.Theme.value}
-											{telemetry}
-											querycondition={iamGroupAuthorizationQuickSearchQueryCondition}
-											updatequerycondition={(value) => {
-												iamGroupAuthorizationQuickSearchQueryCondition = value
-											}}
-											showquerypanel={() => {
-												showIamGroupAuthorizationsQueryPanel = !showIamGroupAuthorizationsQueryPanel
-											}}
-											search={() => {
-												searchIamGroupAuthorizations()
-											}}
-										></ViewIamGroupAuthorizationsSearchBar>
-									</div>
-								{/await}
-							</header>
-
-							<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-								{#if showIamGroupAuthorizationsQueryPanel}
-									<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-										{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-											<QueryPanel
+						{#if iamGroupAuthorizationSearch.getdisplaydata}
+							{#await iamGroupAuthorizationSearch.getdisplaydata()}
+								{@render awaitloading()}
+							{:then}
+								<header class="z-[2] flex justify-center">
+									{#await import('$lib/components/View/IamGroupAuthorizations/SearchBar/Component.svelte') then { default: ViewIamGroupAuthorizationsSearchBar }}
+										<div class="max-md:w-full md:w-[60%]">
+											<ViewIamGroupAuthorizationsSearchBar
+												metadatamodel={iamGroupAuthorizationSearch.searchmetadatamodel}
 												themecolor={State.ThemeColor.value}
 												theme={State.Theme.value}
 												{telemetry}
-												metadatamodel={iamGroupAuthorizationSearchMetadataModel}
-												data={iamGroupAuthorizationSearchResults}
-												queryconditions={iamGroupAuthorizationQueryConditions}
-												filterexcludeindexes={iamGroupAuthorizationSearchFilterExcludeIndexes}
-												updatefilterexcludeindexes={(value) => {
-													iamGroupAuthorizationSearchFilterExcludeIndexes = value
-													State.Toast.Type = Domain.Entities.Toast.Type.INFO
-													State.Toast.Message = `${iamGroupAuthorizationSearchFilterExcludeIndexes.length} local results filtered out`
+												querycondition={iamGroupAuthorizationSearch.quicksearchquerycondition}
+												updatequerycondition={(value) => {
+													iamGroupAuthorizationSearch.quicksearchquerycondition = value
 												}}
-												updatemetadatamodel={updateIamGroupAuthorizationsMetadataModel}
-												updatequeryconditions={(value) => {
-													iamGroupAuthorizationQueryConditions = value
+												showquerypanel={() => {
+													iamGroupAuthorizationSearch.showquerypanel = !iamGroupAuthorizationSearch.showquerypanel
 												}}
-												hidequerypanel={() => (showIamGroupAuthorizationsQueryPanel = false)}
-											></QueryPanel>
-										{/await}
-									</section>
-								{/if}
+												search={() => {
+													if (iamGroupAuthorizationSearch.searchdata) {
+														iamGroupAuthorizationSearch.searchdata()
+													}
+												}}
+											></ViewIamGroupAuthorizationsSearchBar>
+										</div>
+									{/await}
+								</header>
 
-								{#if !showIamGroupAuthorizationsQueryPanel || windowWidth > 1000}
-									<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-										<section class="z-[2] flex w-full">
-											{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-												<div class="h-fit w-full flex-1 self-center">
-													<ViewHeaderData
-														title={'Abstractors'}
-														view={dataView}
-														themecolor={State.ThemeColor.value}
-														theme={State.Theme.value}
-														updateview={(value) => (dataView = value)}
-													></ViewHeaderData>
-												</div>
-											{/await}
-										</section>
-
-										<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-											{#await import('$lib/components/View/IamGroupAuthorizations/Data/Component.svelte') then { default: ViewIamGroupAuthorizationsData }}
-												<ViewIamGroupAuthorizationsData
-													metadatamodel={iamGroupAuthorizationSearchMetadataModel}
-													data={iamGroupAuthorizationSearchResults}
+								<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+									{#if iamGroupAuthorizationSearch.showquerypanel}
+										<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+											{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+												<QueryPanel
 													themecolor={State.ThemeColor.value}
 													theme={State.Theme.value}
 													{telemetry}
-													addclickcolumn={false}
-													addselectcolumn={true}
-													view={dataView}
-													updatemetadatamodel={updateIamGroupAuthorizationsMetadataModel}
-													filterexcludeindexes={iamGroupAuthorizationSearchFilterExcludeIndexes}
-													selecteddataindexes={selectedIamGroupAuthorizations}
-													updateselecteddataindexes={(value) => (selectedIamGroupAuthorizations = value)}
-													viewContext={'iam-credentials'}
-												></ViewIamGroupAuthorizationsData>
+													metadatamodel={iamGroupAuthorizationSearch.searchmetadatamodel}
+													data={iamGroupAuthorizationSearch.searchresults}
+													queryconditions={iamGroupAuthorizationSearch.queryconditions}
+													filterexcludeindexes={iamGroupAuthorizationSearch.filterexcludeindexes}
+													updatefilterexcludeindexes={(value) => {
+														iamGroupAuthorizationSearch.filterexcludeindexes = value
+														State.Toast.Type = Domain.Entities.Toast.Type.INFO
+														State.Toast.Message = `${iamGroupAuthorizationSearch.filterexcludeindexes.length} local results filtered out`
+													}}
+													updatemetadatamodel={(value: any) => {
+														if (iamGroupAuthorizationSearch.updatemedataModel) {
+															iamGroupAuthorizationSearch.updatemedataModel(value)
+														}
+													}}
+													updatequeryconditions={(value) => {
+														iamGroupAuthorizationSearch.queryconditions = value
+													}}
+													hidequerypanel={() => (iamGroupAuthorizationSearch.showquerypanel = false)}
+												></QueryPanel>
 											{/await}
 										</section>
-									</section>
-								{/if}
-							</main>
-						{:catch e}
-							{@render awaiterror(e)}
-						{/await}
+									{/if}
+
+									{#if !iamGroupAuthorizationSearch.showquerypanel || windowWidth > 1000}
+										<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+											<section class="z-[2] flex w-full">
+												{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+													<div class="h-fit w-full flex-1 self-center">
+														<ViewHeaderData
+															title={'Abstractors'}
+															view={iamGroupAuthorizationSearch.view}
+															themecolor={State.ThemeColor.value}
+															theme={State.Theme.value}
+															updateview={(value) => (iamGroupAuthorizationSearch.view = value)}
+														></ViewHeaderData>
+													</div>
+												{/await}
+											</section>
+
+											<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+												{#await import('$lib/components/View/IamGroupAuthorizations/Data/Component.svelte') then { default: ViewIamGroupAuthorizationsData }}
+													<ViewIamGroupAuthorizationsData
+														metadatamodel={iamGroupAuthorizationSearch.searchmetadatamodel}
+														data={iamGroupAuthorizationSearch.searchresults}
+														themecolor={State.ThemeColor.value}
+														theme={State.Theme.value}
+														{telemetry}
+														addclickcolumn={false}
+														addselectcolumn={true}
+														view={iamGroupAuthorizationSearch.view}
+														updatemetadatamodel={(value: any) => {
+															if (iamGroupAuthorizationSearch.updatemedataModel) {
+																iamGroupAuthorizationSearch.updatemedataModel(value)
+															}
+														}}
+														filterexcludeindexes={iamGroupAuthorizationSearch.filterexcludeindexes}
+														selecteddataindexes={iamGroupAuthorizationSearch.selectedindexes}
+														updateselecteddataindexes={(value) => (iamGroupAuthorizationSearch.selectedindexes = value)}
+														viewContext={'iam-credentials'}
+													></ViewIamGroupAuthorizationsData>
+												{/await}
+											</section>
+										</section>
+									{/if}
+								</main>
+							{:catch e}
+								{@render awaiterror(e)}
+							{/await}
+						{/if}
 					</section>
 				{/if}
 
@@ -1207,94 +825,111 @@
 				</button>
 				{#if reassignTab === ReassignTab.DIRECTORY_GROUP}
 					<section class="flex flex-1 flex-col gap-y-2 overflow-hidden p-2">
-						{#await getDisplayDirectoryGroups()}
-							{@render awaitloading()}
-						{:then}
-							<header class="z-[2] flex justify-center">
-								{#await import('$lib/components/View/DirectoryGroups/SearchBar/Component.svelte') then { default: ViewDirectoryGroupsSearchBar }}
-									<div class="max-md:w-full md:w-[60%]">
-										<ViewDirectoryGroupsSearchBar
-											metadatamodel={directoryGroupsSearchMetadataModel}
-											{themecolor}
-											{theme}
-											{telemetry}
-											querycondition={directoryGroupsQuickSearchQueryCondition}
-											updatequerycondition={(value) => {
-												directoryGroupsQuickSearchQueryCondition = value
-											}}
-											showquerypanel={() => {
-												showDirectoryGroupsQueryPanel = !showDirectoryGroupsQueryPanel
-											}}
-											search={() => {
-												searchDirectoryGroups()
-											}}
-										></ViewDirectoryGroupsSearchBar>
-									</div>
-								{/await}
-							</header>
-
-							<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-								{#if showDirectoryGroupsQueryPanel}
-									<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-										{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-											<QueryPanel
+						{#if directoryGroupsSearch.getdisplaydata}
+							{#await directoryGroupsSearch.getdisplaydata()}
+								{@render awaitloading()}
+							{:then}
+								<header class="z-[2] flex justify-center">
+									{#await import('$lib/components/View/DirectoryGroups/SearchBar/Component.svelte') then { default: ViewDirectoryGroupsSearchBar }}
+										<div class="max-md:w-full md:w-[60%]">
+											<ViewDirectoryGroupsSearchBar
+												metadatamodel={directoryGroupsSearch.searchmetadatamodel}
 												{themecolor}
 												{theme}
 												{telemetry}
-												metadatamodel={directoryGroupsSearchMetadataModel}
-												data={directoryGroupsSearchResults}
-												queryconditions={directoryGroupsQueryConditions}
-												filterexcludeindexes={directoryGroupsSearchFilterExcludeIndexes}
-												updatefilterexcludeindexes={(value) => {
-													directoryGroupsSearchFilterExcludeIndexes = value
-													State.Toast.Type = Domain.Entities.Toast.Type.INFO
-													State.Toast.Message = `${directoryGroupsSearchFilterExcludeIndexes.length} local results filtered out`
+												querycondition={directoryGroupsSearch.quicksearchquerycondition}
+												updatequerycondition={(value) => {
+													directoryGroupsSearch.quicksearchquerycondition = value
 												}}
-												updatemetadatamodel={updateDirectoryGroupsMetadataModel}
-												updatequeryconditions={(value) => {
-													directoryGroupsQueryConditions = value
+												showquerypanel={() => {
+													directoryGroupsSearch.showquerypanel = !directoryGroupsSearch.showquerypanel
 												}}
-												hidequerypanel={() => (showDirectoryGroupsQueryPanel = false)}
-											></QueryPanel>
-										{/await}
-									</section>
-								{/if}
+												search={() => {
+													if (directoryGroupsSearch.searchdata) {
+														directoryGroupsSearch.searchdata()
+													}
+												}}
+											></ViewDirectoryGroupsSearchBar>
+										</div>
+									{/await}
+								</header>
 
-								{#if !showDirectoryGroupsQueryPanel || windowWidth > 1000}
-									<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-										<section class="z-[2] flex w-full">
-											{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-												<div class="h-fit w-full flex-1 self-center">
-													<ViewHeaderData title={'Groups'} view={dataView} {themecolor} {theme} updateview={(value) => (dataView = value)}
-													></ViewHeaderData>
-												</div>
-											{/await}
-										</section>
-
-										<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-											{#await import('$lib/components/View/DirectoryGroups/Data/Component.svelte') then { default: ViewDirectoryGroupsData }}
-												<ViewDirectoryGroupsData
-													metadatamodel={directoryGroupsSearchMetadataModel}
-													data={directoryGroupsSearchResults}
+								<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+									{#if directoryGroupsSearch.showquerypanel}
+										<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+											{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+												<QueryPanel
 													{themecolor}
 													{theme}
 													{telemetry}
-													addclickcolumn={false}
-													addselectcolumn={true}
-													view={dataView}
-													updatemetadatamodel={updateDirectoryGroupsMetadataModel}
-													filterexcludeindexes={directoryGroupsSearchFilterExcludeIndexes}
-													selecteddataindexes={selectedDirectoryGroups}
-													updateselecteddataindexes={(value) => (selectedDirectoryGroups = value)}
-												></ViewDirectoryGroupsData>
+													metadatamodel={directoryGroupsSearch.searchmetadatamodel}
+													data={directoryGroupsSearch.searchresults}
+													queryconditions={directoryGroupsSearch.queryconditions}
+													filterexcludeindexes={directoryGroupsSearch.filterexcludeindexes}
+													updatefilterexcludeindexes={(value) => {
+														directoryGroupsSearch.filterexcludeindexes = value
+														State.Toast.Type = Domain.Entities.Toast.Type.INFO
+														State.Toast.Message = `${directoryGroupsSearch.filterexcludeindexes.length} local results filtered out`
+													}}
+													updatemetadatamodel={(value: any) => {
+														if (directoryGroupsSearch.updatemedataModel) {
+															directoryGroupsSearch.updatemedataModel(value)
+														}
+													}}
+													updatequeryconditions={(value) => {
+														directoryGroupsSearch.queryconditions = value
+													}}
+													hidequerypanel={() => (directoryGroupsSearch.showquerypanel = false)}
+												></QueryPanel>
 											{/await}
 										</section>
-									</section>
-								{/if}
-							</main>
-						{:catch e}
-							{@render awaiterror(e)}
-						{/await}
+									{/if}
+
+									{#if !directoryGroupsSearch.showquerypanel || windowWidth > 1000}
+										<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+											<section class="z-[2] flex w-full">
+												{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+													<div class="h-fit w-full flex-1 self-center">
+														<ViewHeaderData
+															title={'Groups'}
+															view={directoryGroupsSearch.view}
+															{themecolor}
+															{theme}
+															updateview={(value) => (directoryGroupsSearch.view = value)}
+														></ViewHeaderData>
+													</div>
+												{/await}
+											</section>
+
+											<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+												{#await import('$lib/components/View/DirectoryGroups/Data/Component.svelte') then { default: ViewDirectoryGroupsData }}
+													<ViewDirectoryGroupsData
+														metadatamodel={directoryGroupsSearch.searchmetadatamodel}
+														data={directoryGroupsSearch.searchresults}
+														{themecolor}
+														{theme}
+														{telemetry}
+														addclickcolumn={false}
+														addselectcolumn={true}
+														view={directoryGroupsSearch.view}
+														updatemetadatamodel={(value: any) => {
+															if (directoryGroupsSearch.updatemedataModel) {
+																directoryGroupsSearch.updatemedataModel(value)
+															}
+														}}
+														filterexcludeindexes={directoryGroupsSearch.filterexcludeindexes}
+														selecteddataindexes={directoryGroupsSearch.selectedindexes}
+														updateselecteddataindexes={(value) => (directoryGroupsSearch.selectedindexes = value)}
+													></ViewDirectoryGroupsData>
+												{/await}
+											</section>
+										</section>
+									{/if}
+								</main>
+							{:catch e}
+								{@render awaiterror(e)}
+							{/await}
+						{/if}
 					</section>
 				{/if}
 
@@ -1309,111 +944,123 @@
 				</button>
 				{#if reassignTab === ReassignTab.ABSTRACTIONS}
 					<section class="flex flex-1 flex-col gap-y-2 overflow-hidden p-2">
-						{#await getDisplayAbstractions()}
-							{@render awaitloading()}
-						{:then}
-							<header class="z-[2] flex justify-between gap-x-2">
-								{#await import('$lib/components/View/Abstractions/SearchBar/Component.svelte') then { default: ViewAbstractionsSearchBar }}
-									<div class="max-md:w-full md:w-[60%]">
-										<ViewAbstractionsSearchBar
-											metadatamodel={abstractionsSearchMetadataModel}
-											themecolor={State.ThemeColor.value}
-											theme={State.Theme.value}
-											{telemetry}
-											querycondition={abstractionsQuickSearchQueryCondition}
-											updatequerycondition={(value) => {
-												abstractionsQuickSearchQueryCondition = value
-											}}
-											showquerypanel={() => {
-												showAbstractionsQueryPanel = !showAbstractionsQueryPanel
-											}}
-											search={() => {
-												searchAbstractions()
-											}}
-										></ViewAbstractionsSearchBar>
-									</div>
-								{/await}
-							</header>
-
-							<div class="divider mb-0 mt-0"></div>
-
-							<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-								{#if showAbstractionsQueryPanel}
-									<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-										{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-											<QueryPanel
+						{#if abstractionsSearch.getdisplaydata}
+							{#await abstractionsSearch.getdisplaydata()}
+								{@render awaitloading()}
+							{:then}
+								<header class="z-[2] flex justify-between gap-x-2">
+									{#await import('$lib/components/View/Abstractions/SearchBar/Component.svelte') then { default: ViewAbstractionsSearchBar }}
+										<div class="max-md:w-full md:w-[60%]">
+											<ViewAbstractionsSearchBar
+												metadatamodel={abstractionsSearch.searchmetadatamodel}
 												themecolor={State.ThemeColor.value}
 												theme={State.Theme.value}
 												{telemetry}
-												metadatamodel={abstractionsSearchMetadataModel}
-												data={abstractionsSearchResults}
-												queryconditions={abstractionsQueryConditions}
-												filterexcludeindexes={abstractionsSearchFilterExcludeIndexes}
-												updatefilterexcludeindexes={(value) => {
-													abstractionsSearchFilterExcludeIndexes = value
-													State.Toast.Type = Domain.Entities.Toast.Type.INFO
-													State.Toast.Message = `${abstractionsSearchFilterExcludeIndexes.length} local results filtered out`
+												querycondition={abstractionsSearch.quicksearchquerycondition}
+												updatequerycondition={(value) => {
+													abstractionsSearch.quicksearchquerycondition = value
 												}}
-												updatemetadatamodel={updateAbstractionsMetadataModel}
-												updatequeryconditions={(value) => {
-													abstractionsQueryConditions = value
+												showquerypanel={() => {
+													abstractionsSearch.showquerypanel = !abstractionsSearch.showquerypanel
 												}}
-												hidequerypanel={() => (showAbstractionsQueryPanel = false)}
-											></QueryPanel>
-										{/await}
-									</section>
-								{/if}
+												search={() => {
+													if (abstractionsSearch.searchdata) {
+														abstractionsSearch.searchdata()
+													}
+												}}
+											></ViewAbstractionsSearchBar>
+										</div>
+									{/await}
+								</header>
 
-								{#if !showAbstractionsQueryPanel || windowWidth > 1000}
-									<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-										{#if abstractionsSearchResults.length > 0}
-											<section class="z-[2] flex w-full">
-												{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-													<div class="h-fit w-full flex-1 self-center">
-														<ViewHeaderData
-															title={'Pick Abstraction(s)...'}
-															view={dataView}
+								<div class="divider mb-0 mt-0"></div>
+
+								<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+									{#if abstractionsSearch.showquerypanel}
+										<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+											{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+												<QueryPanel
+													themecolor={State.ThemeColor.value}
+													theme={State.Theme.value}
+													{telemetry}
+													metadatamodel={abstractionsSearch.searchmetadatamodel}
+													data={abstractionsSearch.searchresults}
+													queryconditions={abstractionsSearch.queryconditions}
+													filterexcludeindexes={abstractionsSearch.filterexcludeindexes}
+													updatefilterexcludeindexes={(value) => {
+														abstractionsSearch.filterexcludeindexes = value
+														State.Toast.Type = Domain.Entities.Toast.Type.INFO
+														State.Toast.Message = `${abstractionsSearch.filterexcludeindexes.length} local results filtered out`
+													}}
+													updatemetadatamodel={(value: any) => {
+														if (abstractionsSearch.updatemedataModel) {
+															abstractionsSearch.updatemedataModel(value)
+														}
+													}}
+													updatequeryconditions={(value) => {
+														abstractionsSearch.queryconditions = value
+													}}
+													hidequerypanel={() => (abstractionsSearch.showquerypanel = false)}
+												></QueryPanel>
+											{/await}
+										</section>
+									{/if}
+
+									{#if !abstractionsSearch.showquerypanel || windowWidth > 1000}
+										<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+											{#if Array.isArray(abstractionsSearch.searchresults) && abstractionsSearch.searchresults.length > 0}
+												<section class="z-[2] flex w-full">
+													{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+														<div class="h-fit w-full flex-1 self-center">
+															<ViewHeaderData
+																title={'Pick Abstraction(s)...'}
+																view={abstractionsSearch.view}
+																themecolor={State.ThemeColor.value}
+																theme={State.Theme.value}
+																updateview={(value) => (abstractionsSearch.view = value)}
+															></ViewHeaderData>
+														</div>
+													{/await}
+												</section>
+
+												<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+													{#await import('$lib/components/View/Abstractions/Data/Component.svelte') then { default: ViewAbstractionsData }}
+														<ViewAbstractionsData
+															metadatamodel={abstractionsSearch.searchmetadatamodel}
+															data={abstractionsSearch.searchresults}
 															themecolor={State.ThemeColor.value}
 															theme={State.Theme.value}
-															updateview={(value) => (dataView = value)}
-														></ViewHeaderData>
-													</div>
-												{/await}
-											</section>
-
-											<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-												{#await import('$lib/components/View/Abstractions/Data/Component.svelte') then { default: ViewAbstractionsData }}
-													<ViewAbstractionsData
-														metadatamodel={abstractionsSearchMetadataModel}
-														data={abstractionsSearchResults}
-														themecolor={State.ThemeColor.value}
-														theme={State.Theme.value}
-														{telemetry}
-														addselectcolumn={true}
-														addclickcolumn={false}
-														view={dataView}
-														updatemetadatamodel={updateAbstractionsMetadataModel}
-														filterexcludeindexes={abstractionsSearchFilterExcludeIndexes}
-														selecteddataindexes={selectedAbstractions}
-														updateselecteddataindexes={(value) => (selectedAbstractions = value)}
-													></ViewAbstractionsData>
-												{/await}
-											</section>
-										{:else}
-											<div
-												class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
-													? 'bg-gray-700'
-													: 'bg-gray-200'}"
-											>
-												<span class="flex self-center text-lg"> Create and manage data abstracted from published works. </span>
-											</div>
-										{/if}
-									</section>
-								{/if}
-							</main>
-						{:catch e}
-							{@render awaiterror(e)}
-						{/await}
+															{telemetry}
+															addselectcolumn={true}
+															addclickcolumn={false}
+															view={abstractionsSearch.view}
+															updatemetadatamodel={(value: any) => {
+																if (abstractionsSearch.updatemedataModel) {
+																	abstractionsSearch.updatemedataModel(value)
+																}
+															}}
+															filterexcludeindexes={abstractionsSearch.filterexcludeindexes}
+															selecteddataindexes={abstractionsSearch.selectedindexes}
+															updateselecteddataindexes={(value) => (abstractionsSearch.selectedindexes = value)}
+														></ViewAbstractionsData>
+													{/await}
+												</section>
+											{:else}
+												<div
+													class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+														? 'bg-gray-700'
+														: 'bg-gray-200'}"
+												>
+													<span class="flex self-center text-lg"> Create and manage data abstracted from published works. </span>
+												</div>
+											{/if}
+										</section>
+									{/if}
+								</main>
+							{:catch e}
+								{@render awaiterror(e)}
+							{/await}
+						{/if}
 					</section>
 				{/if}
 

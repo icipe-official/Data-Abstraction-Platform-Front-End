@@ -659,7 +659,7 @@ Props:
 			<pre
 				class="grid h-fit w-full {theme === Domain.Entities.Theme.Theme.DARK
 					? 'bg-gray-500'
-					: 'bg-gray-700'} ml-1 mr-1 p-1 text-white shadow-inner shadow-gray-800"
+					: 'bg-gray-700'} mr-1 ml-1 p-1 text-white shadow-inner shadow-gray-800"
 				style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};"><code>{JSON.stringify(data, null, 4)}</code></pre>
 		{:else}
 			<header
@@ -693,7 +693,7 @@ Props:
 					</div>
 
 					{#if addselectcolumn}
-						<div class="flex h-full min-w-[47px] max-w-fit justify-center gap-x-1 p-1 text-lg font-bold">
+						<div class="flex h-full max-w-fit min-w-[47px] justify-center gap-x-1 p-1 text-lg font-bold">
 							<div
 								class="tooltip tooltip-right h-fit w-fit self-start {themecolor === Domain.Entities.Theme.Color.PRIMARY
 									? 'tooltip-primary'

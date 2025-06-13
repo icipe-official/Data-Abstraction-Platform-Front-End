@@ -65,8 +65,6 @@
 			}
 		}
 	}
-
-	
 </script>
 
 <div class="flex h-fit {directoryGroupsQCKey ? 'w-full' : 'w-fit'} flex-col">

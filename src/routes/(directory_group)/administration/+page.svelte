@@ -14,22 +14,7 @@
 
 	let windowWidth: number = $state(0)
 
-	onMount(() => {
-		if (data.tokens?.access_token && data.tokens?.refresh_token) {
-			State.Session.tokens = {
-				access_token: data.tokens.access_token,
-				refresh_token: data.tokens.refresh_token
-			}
-		} else {
-			State.Session.tokens = undefined
-		}
-
-		if (data.authentication_headers) {
-			State.AuthenticationHeaders.value = data.authentication_headers
-		} else {
-			State.AuthenticationHeaders.value = undefined
-		}
-	})
+	
 
 	let currentTab: Tab = $state(Tab.DIRECTORY_GROUPS)
 

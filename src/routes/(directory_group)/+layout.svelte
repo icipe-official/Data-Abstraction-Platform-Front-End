@@ -9,23 +9,6 @@
 
 	let { data, children }: LayoutProps & { children: Snippet<[]> } = $props()
 
-	onMount(() => {
-		if (data.tokens?.access_token && data.tokens?.refresh_token) {
-			State.Session.tokens = {
-				access_token: data.tokens.access_token,
-				refresh_token: data.tokens.refresh_token
-			}
-		} else {
-			State.Session.tokens = undefined
-		}
-
-		if (data.authentication_headers) {
-			State.AuthenticationHeaders.value = data.authentication_headers
-		} else {
-			State.AuthenticationHeaders.value = undefined
-		}
-	})
-
 	let iamCredential: Domain.Entities.IamCredentials.Interface | undefined = $derived(State.Session?.session?.iam_credential)
 
 	let accountManagementEndpoint: string | undefined = $derived(State.OpenidEndpoints?.value?.account_management_endpoint)
@@ -41,7 +24,7 @@
 	async function handleSignout() {
 		State.Loading.value = 'Signing out'
 		try {
-			const fetchResponse = await new Interfaces.AuthenticatedFetch.Client(false).Fetch(Domain.Entities.Url.ApiUrlPaths.Iam.Signout)
+			const fetchResponse = await fetch(Domain.Entities.Url.ApiUrlPaths.Iam.Signout, { credentials: 'include' })
 			const fetchData = await fetchResponse.json()
 			if (fetchResponse.ok) {
 				State.Toast.Type = Domain.Entities.Toast.Type.SUCCESS
@@ -107,7 +90,7 @@
 											: 'bg-white'} overflow-hidden"
 									>
 										{@render roothomebutton()}
-										<div class="divider mb-0 mt-0"></div>
+										<div class="divider mt-0 mb-0"></div>
 										{@render navmenu(false)}
 									</section>
 								</div>
@@ -151,16 +134,16 @@
 					{#if showSectionID === 'account-menu'}
 						<div class="relative">
 							<section
-								class="absolute flex min-w-[200px] flex-col rounded-md p-1 shadow-md shadow-gray-800 max-md:right-0 max-md:top-0 md:bottom-0 md:left-0 {State
+								class="absolute flex min-w-[200px] flex-col rounded-md p-1 shadow-md shadow-gray-800 max-md:top-0 max-md:right-0 md:bottom-0 md:left-0 {State
 									.Theme.value === Domain.Entities.Theme.Theme.DARK
 									? 'bg-base-300'
 									: 'bg-white'}"
 							>
 								{#if windowWidth > 768}
 									<div class="text-md text-center font-bold italic">{Domain.Entities.IamCredentials.GetOpenidName(iamCredential)}</div>
-									<div class="divider mb-0 mt-0"></div>
+									<div class="divider mt-0 mb-0"></div>
 								{/if}
-								{#if State.Session.tokens?.access_token || State.Session.tokens?.refresh_token}
+								{#if State.Session.session}
 									<button class="btn btn-ghost btn-md" onclick={handleSignout} aria-label="Sign Out"> Sign Out </button>
 								{/if}
 								{#if accountManagementEndpoint}

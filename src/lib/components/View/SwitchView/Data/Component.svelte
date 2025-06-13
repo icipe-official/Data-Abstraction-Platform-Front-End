@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Domain } from "$lib"
-	import type { View } from "../.."
+	import { Domain } from '$lib'
+	import type { View } from '../..'
 
 	interface Props {
 		theme?: Domain.Entities.Theme.Theme

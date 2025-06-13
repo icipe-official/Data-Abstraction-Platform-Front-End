@@ -431,7 +431,7 @@ Props:
 
 		{#if showgroupfields}
 			{#if viewFieldGroupJson}
-				<section class="flex h-fit w-full flex-1 overflow-hidden pb-1 pt-1" style="grid-column: 1/3;">
+				<section class="flex h-fit w-full flex-1 overflow-hidden pt-1 pb-1" style="grid-column: 1/3;">
 					<pre
 						class="h-fit max-h-[50vh] w-full flex-1 overflow-auto rounded-md {theme === Domain.Entities.Theme.Theme.DARK
 							? 'bg-gray-500'
@@ -462,7 +462,7 @@ Props:
 								)}
 
 								{#if fg}
-									<div class="pb-1 pt-1">
+									<div class="pt-1 pb-1">
 										{#await import('./Component.svelte') then { default: Self }}
 											<Self
 												themecolor={Utils.Theme.GetNextColorA(themecolor)}
@@ -525,7 +525,7 @@ Props:
 								{@const fg = fieldgroup[MetadataModel.FgProperties.GROUP_FIELDS][0][fgKey]}
 
 								{#if fg}
-									<div class="pb-1 pt-1">
+									<div class="pt-1 pb-1">
 										{#await import('./Component.svelte') then { default: Self }}
 											<Self
 												themecolor={Utils.Theme.GetNextColorA(themecolor)}

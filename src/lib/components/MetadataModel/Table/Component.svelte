@@ -93,7 +93,7 @@ Props"
 
 		return onGetData
 	})
-	
+
 	function onGetData(path: string, arrayindexes: number[]) {
 		try {
 			arrayindexes = [arrayindexes[0], ...arrayindexes]

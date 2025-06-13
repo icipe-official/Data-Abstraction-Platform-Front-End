@@ -266,7 +266,7 @@
 								<!-- svelte-ignore a11y_interactive_supports_focus -->
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<div
-									class="btn btn-md btn-ghost min-h-fit flex-1 justify-start pb-1 pt-1"
+									class="btn btn-md btn-ghost min-h-fit flex-1 justify-start pt-1 pb-1"
 									role="button"
 									onclick={() => {
 										if (rowclick) {
@@ -346,7 +346,7 @@
 								</main>
 							{/await}
 						{:else if rIndex !== rowsEnd}
-							<div class="divider mb-0 mt-0"></div>
+							<div class="divider mt-0 mb-0"></div>
 						{/if}
 					</section>
 				{/each}

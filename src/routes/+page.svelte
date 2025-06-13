@@ -17,7 +17,7 @@
 
 	async function handleSignout() {
 		try {
-			const fetchResponse = await new Interfaces.AuthenticatedFetch.Client(false).Fetch(Domain.Entities.Url.ApiUrlPaths.Iam.Signout)
+			const fetchResponse = await fetch(Domain.Entities.Url.ApiUrlPaths.Iam.Signout, { credentials: 'include' })
 			const fetchData = await fetchResponse.json()
 			if (fetchResponse.ok) {
 				State.Toast.Type = Domain.Entities.Toast.Type.SUCCESS

@@ -32,11 +32,7 @@
 	let viewQueryCondition = $derived(JSON.parse(JSON.stringify(querycondition)))
 
 	let metadataModelsQCKey = $derived(
-		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(
-			metadatamodel,
-			Domain.Entities.MetadataModels.RepositoryName,
-			joindepth
-		)
+		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(metadatamodel, Domain.Entities.MetadataModels.RepositoryName, joindepth)
 	)
 	let metadataModelsFullTextSearchQuery: string = $derived.by(() => {
 		if (metadataModelsQCKey) {
@@ -96,8 +92,6 @@
 			}
 		}
 	}
-
-	
 
 	let showFilterPanel: boolean = $state(false)
 

@@ -195,6 +195,6 @@ Props:
 			{/if}
 		</fieldset>
 	</main>
-	
+
 	{@render FooterSnippet(themecolor, theme, updatefieldgroup, fieldgroup)}
 </div>

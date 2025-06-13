@@ -36,7 +36,7 @@ Props:
 		theme = Domain.Entities.Theme.Theme.LIGHT,
 		notification = undefined
 	}: Props = $props()
-	
+
 	let viewMetadataModel: any = $derived(JSON.parse(JSON.stringify(metadatamodel)))
 
 	/**
@@ -93,7 +93,7 @@ Props:
 	<FieldGroupView
 		{telemetry}
 		{contentperpage}
-		themecolor={themecolor}
+		{themecolor}
 		{theme}
 		fieldgroup={viewMetadataModel}
 		cutfieldgroup={typeof cutFieldGroup !== 'undefined'}
@@ -372,9 +372,9 @@ Props:
 </div>
 
 <dialog bind:this={editFieldGroupDialogElement} id="edit-field-group-dialog" class="modal">
-	<div class="modal-box flex max-h-[90vh] w-fit flex-col overflow-hidden rounded p-0 max-md:min-w-[90%] md:min-w-[700px] md:max-w-[800px]">
+	<div class="modal-box flex max-h-[90vh] w-fit flex-col overflow-hidden rounded p-0 max-md:min-w-[90%] md:max-w-[800px] md:min-w-[700px]">
 		{#if selectedFieldGroupKey && selectedFieldGroupKey.length > 0}
-			<header class="sticky left-0 right-0 top-0 flex flex-[1] items-center justify-between p-2 shadow-sm shadow-gray-800 mb-1">
+			<header class="sticky top-0 right-0 left-0 mb-1 flex flex-[1] items-center justify-between p-2 shadow-sm shadow-gray-800">
 				<div
 					class="flex h-fit w-fit gap-x-1 {selectedFieldGroupColor === Domain.Entities.Theme.Color.PRIMARY
 						? 'text-primary'

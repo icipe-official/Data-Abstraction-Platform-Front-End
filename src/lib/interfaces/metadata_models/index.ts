@@ -1,3 +1,4 @@
+export * from './view_search'
 export * from './search'
 export * from './get'
 export * from './field_any_get_metadata_model'

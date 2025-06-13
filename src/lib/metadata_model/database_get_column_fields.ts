@@ -91,8 +91,6 @@ class _ {
 				continue
 			}
 
-			
-
 			if (
 				Array.isArray(mmGroupFields[fgKey][FgProperties.GROUP_FIELDS]) &&
 				typeof mmGroupFields[fgKey][FgProperties.DATABASE_FIELD_COLUMN_NAME] === 'undefined'

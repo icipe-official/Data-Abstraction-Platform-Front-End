@@ -45,8 +45,6 @@
 
 	let dataStringified: any = $derived(JSON.stringify(data))
 
-	
-
 	function getDatumFieldData(tableCollectionName: string, fieldColumnName: string, joinDepth: number = 0) {
 		let fieldGroup: any = getFieldGroupByFieldColumnName(tableCollectionName, fieldColumnName, joinDepth)
 
@@ -64,6 +62,23 @@
 		} catch (e) {
 			return undefined
 		}
+	}
+
+	function getFieldGroupByFieldColumnName(tableCollectionName: string, fieldColumnName: string, joinDepth: number = 0) {
+		let fieldGroup: any
+
+		MetadataModel.ForEachFieldGroup(JSON.parse(groupStringified), (property: any) => {
+			if (
+				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === joinDepth &&
+				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === tableCollectionName &&
+				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === fieldColumnName
+			) {
+				fieldGroup = JSON.parse(JSON.stringify(property))
+				return true
+			}
+		})
+
+		return fieldGroup
 	}
 
 	function getdata(path: string, arrayindexes: number[]) {
@@ -166,11 +181,7 @@
 {/if}
 
 {#snippet datumdeactivatedon()}
-	{@const fieldData = getDatumFieldData(
-		Domain.Entities.Directory.RepositoryName,
-		Domain.Entities.Directory.FieldColumn.DeactivatedOn,
-		joindepth
-	)}
+	{@const fieldData = getDatumFieldData(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DeactivatedOn, joindepth)}
 
 	{#if fieldData}
 		<fieldset
@@ -196,11 +207,7 @@
 {/snippet}
 
 {#snippet datumlastupdatedon()}
-	{@const fieldData = getDatumFieldData(
-		Domain.Entities.Directory.RepositoryName,
-		Domain.Entities.Directory.FieldColumn.LastUpdatedOn,
-		joindepth
-	)}
+	{@const fieldData = getDatumFieldData(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.LastUpdatedOn, joindepth)}
 
 	<fieldset
 		class="fieldset {theme === Domain.Entities.Theme.Theme.DARK
@@ -227,13 +234,8 @@
 	</fieldset>
 {/snippet}
 
-
 {#snippet datumcreatedon()}
-	{@const fieldData = getDatumFieldData(
-		Domain.Entities.Directory.RepositoryName,
-		Domain.Entities.Directory.FieldColumn.CreatedOn,
-		joindepth
-	)}
+	{@const fieldData = getDatumFieldData(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.CreatedOn, joindepth)}
 
 	<fieldset
 		class="fieldset {theme === Domain.Entities.Theme.Theme.DARK
@@ -261,11 +263,7 @@
 {/snippet}
 
 {#snippet datumdata()}
-	{@const fieldData = getDatumFieldData(
-		Domain.Entities.Directory.RepositoryName,
-		Domain.Entities.Directory.FieldColumn.Data,
-		joindepth
-	)}
+	{@const fieldData = getDatumFieldData(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.Data, joindepth)}
 
 	{#if Array.isArray(fieldData)}
 		<fieldset
@@ -304,11 +302,7 @@
 {/snippet}
 
 {#snippet datumdiplayname()}
-	{@const fieldData = getDatumFieldData(
-		Domain.Entities.Directory.RepositoryName,
-		Domain.Entities.Directory.FieldColumn.DisplayName,
-		joindepth
-	)}
+	{@const fieldData = getDatumFieldData(Domain.Entities.Directory.RepositoryName, Domain.Entities.Directory.FieldColumn.DisplayName, joindepth)}
 
 	<fieldset
 		class="fieldset {theme === Domain.Entities.Theme.Theme.DARK

@@ -106,7 +106,7 @@ Alternative select input with option for picking more than one option.
 
 <div class="flex flex-col gap-y-2" onfocusin={() => (showSelectOptions = true)}>
 	<header
-		class="flex h-fit max-h-[200px] w-full min-w-[300px] flex-wrap gap-x-2 gap-y-2 overflow-y-auto overflow-x-hidden p-1 {addborder
+		class="flex h-fit max-h-[200px] w-full min-w-[300px] flex-wrap gap-x-2 gap-y-2 overflow-x-hidden overflow-y-auto p-1 {addborder
 			? `border ${borderrounded ? 'rounded-md' : ''} ${
 					themecolor
 						? themecolor === Domain.Entities.Theme.Color.PRIMARY
@@ -162,7 +162,7 @@ Alternative select input with option for picking more than one option.
 
 		<div class="flex w-full min-w-[200px] flex-1 justify-between">
 			<input
-				class="input input-ghost w-full flex-[9] border-0 border-none outline-none p-1"
+				class="input input-ghost w-full flex-[9] border-0 border-none p-1 outline-none"
 				type="search"
 				bind:value={searchQuery}
 				placeholder={!multiselect && typeof selectedoptions === 'object'
@@ -258,7 +258,7 @@ Alternative select input with option for picking more than one option.
 				<div class="divider"></div>
 			{/if}
 
-			<section class="sticky bottom-0 flex h-fit w-full flex-col content-center justify-center gap-y-1 pl-1 pr-1">
+			<section class="sticky bottom-0 flex h-fit w-full flex-col content-center justify-center gap-y-1 pr-1 pl-1">
 				<div class="w-fit self-center">
 					<Pagination
 						lengthofdata={noOfViewSelectOptions}

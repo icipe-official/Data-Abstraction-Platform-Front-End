@@ -44,21 +44,6 @@
 			State.Session.session = undefined
 		}
 
-		if (data.tokens?.access_token && data.tokens?.refresh_token) {
-			State.Session.tokens = {
-				access_token: data.tokens.access_token,
-				refresh_token: data.tokens.refresh_token
-			}
-		} else {
-			State.Session.tokens = undefined
-		}
-
-		if (data.authentication_headers) {
-			State.AuthenticationHeaders.value = data.authentication_headers
-		} else {
-			State.AuthenticationHeaders.value = undefined
-		}
-
 		if (data.openid_endpoints) {
 			State.OpenidEndpoints.value = data.openid_endpoints
 		} else {
@@ -191,7 +176,7 @@
 <dialog bind:this={toastMetadataModelSearchResultsDialog} id="toast-metadata-model-search-results-dialog" class="modal">
 	{#if toastViewMore}
 		<div class="modal-box flex h-full max-h-[90%] w-full max-w-[90%] flex-col overflow-hidden rounded p-0">
-			<header class="sticky left-0 right-0 top-0 mb-1 flex flex-[0.5] items-center justify-between p-2 shadow-sm shadow-gray-800">
+			<header class="sticky top-0 right-0 left-0 mb-1 flex flex-[0.5] items-center justify-between p-2 shadow-sm shadow-gray-800">
 				<button class="btn btn-circle btn-ghost" aria-label="Show Query Panel" onclick={() => (toastShowQueryPanel = !toastShowQueryPanel)}>
 					{#if toastShowQueryPanel}
 						<!--mdi:filter-remove source: https://icon-sets.iconify.design-->
@@ -232,7 +217,7 @@
 				{#if toastShowQueryPanel}
 					<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
 						{#await import("$lib/components/MetadataModel/Query/Component.svelte") then { default: MetadataModelQuery }}
-							<section class="flex h-full w-full flex-1 overflow-hidden rounded-lg min-w-[300px]">
+							<section class="flex h-full w-full min-w-[300px] flex-1 overflow-hidden rounded-lg">
 								<MetadataModelQuery
 									metadatamodel={toastMetadataModelSearchResultsMM}
 									themecolor={State.ThemeColor.value}
@@ -249,7 +234,7 @@
 
 							<section class="join w-full">
 								<button
-									class="join-item flex-1 btn btn-md {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+									class="join-item btn btn-md flex-1 {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
 										? 'btn-primary'
 										: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
 											? 'btn-secondary'
@@ -265,7 +250,7 @@
 									reset
 								</button>
 								<button
-									class="join-item flex-1 btn btn-md {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+									class="join-item btn btn-md flex-1 {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
 										? 'btn-primary'
 										: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
 											? 'btn-secondary'
@@ -287,7 +272,7 @@
 				{/if}
 
 				{#if !toastShowQueryPanel || windowWidth > 1000}
-					<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-[2]'} overflow-hidden rounded-lg w-full h-full">
+					<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-[2]'} h-full w-full overflow-hidden rounded-lg">
 						{#await import('$lib/components/MetadataModel/Table/Component.svelte') then { default: MetadataModelTable }}
 							<MetadataModelTable
 								metadatamodel={State.Toast.MedataModelSearchResults?.metadata_model}

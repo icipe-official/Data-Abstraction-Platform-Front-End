@@ -19,7 +19,9 @@
 				return message.join('|| ')
 			}
 
-			return Object.keys(message).map((key) => `${key} -> ${message[key]}`).join(" || ")
+			return Object.keys(message)
+				.map((key) => `${key} -> ${message[key]}`)
+				.join(' || ')
 		}
 
 		return `${message}`
@@ -32,13 +34,13 @@
 		? 'bg-base-200'
 		: 'bg-white'}"
 >
-	<section class="flex flex-col justify-end gap-y-2 pb-6 pt-6 text-3xl">
+	<section class="flex flex-col justify-end gap-y-2 pt-6 pb-6 text-3xl">
 		<span class="text-error self-end">{status}</span>
 	</section>
 
 	<div class="divider divider-horizontal"></div>
 
 	<section class="flex">
-		<span class="self-center text-wrap break-words text-sm">{errorMessage}</span>
+		<span class="self-center text-sm text-wrap break-words">{errorMessage}</span>
 	</section>
 </span>

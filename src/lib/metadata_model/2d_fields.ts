@@ -431,7 +431,7 @@ export function Reposition2DFields(fields2d: I2DFields) {
 				}
 			}
 		}
-		
+
 		if (destinationIndex >= 0) {
 			const sourceCopy = structuredClone(repositionedFields[sourceIndex])
 			repositionedFields = [...repositionedFields.slice(0, sourceIndex), ...repositionedFields.slice(sourceIndex + 1)]

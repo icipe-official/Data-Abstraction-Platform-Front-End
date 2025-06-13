@@ -32,7 +32,7 @@
 	let viewQueryCondition = $derived(JSON.parse(JSON.stringify(querycondition)))
 
 	let directoryQCKey = $derived(
-		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(metadatamodel, Domain.Entities.Directory.RepositoryName, joindepth+1)
+		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(metadatamodel, Domain.Entities.Directory.RepositoryName, joindepth + 1)
 	)
 	let fullTextSearchQuery: string = $derived.by(() => {
 		if (directoryQCKey) {
@@ -65,8 +65,6 @@
 			}
 		}
 	}
-
-	
 </script>
 
 <div class="flex h-fit {directoryQCKey ? 'w-full' : 'w-fit'} flex-col">

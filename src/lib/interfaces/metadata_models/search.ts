@@ -1,16 +1,23 @@
-import { Domain, MetadataModel, State } from '$lib'
+import { Domain, MetadataModel } from '$lib'
 
 export class SearchData implements Domain.Interfaces.MetadataModels.Search {
 	private _searchMetadatamodelUrl: string
 	private _searchUrl: string
 	searchmetadatamodel: any = {}
 	searchresults: Domain.Entities.MetadataModel.ISearchResults = {}
-	private authenticatedFetch?: Domain.Interfaces.AuthenticatedFetch
 
-	constructor(searchMetadatamodelUrl: string, searchUrl: string, authenticatedFetch?: Domain.Interfaces.AuthenticatedFetch) {
+	private fetch: Domain.Interfaces.Fetch = fetch
+
+	constructor(
+		searchMetadatamodelUrl: string,
+		searchUrl: string,
+		customfetch?: Domain.Interfaces.Fetch
+	) {
 		this._searchMetadatamodelUrl = searchMetadatamodelUrl
 		this._searchUrl = searchUrl
-		this.authenticatedFetch = authenticatedFetch
+		if (customfetch) {
+			this.fetch = customfetch
+		}
 	}
 
 	UpdateMetadatamodel(value: any) {
@@ -29,16 +36,8 @@ export class SearchData implements Domain.Interfaces.MetadataModels.Search {
 	async FetchMetadataModel(
 		authContextDirectoryGroupID: string | undefined = undefined,
 		targetJoinDepth: number | undefined = undefined,
-		signal: AbortSignal | null | undefined,
-		customFetch?: {
-			(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
-			(input: string | URL | globalThis.Request, init?: RequestInit): Promise<Response>
-		}
+		signal: AbortSignal | null | undefined
 	) {
-		let goFetch = fetch
-		if (customFetch) {
-			goFetch = customFetch
-		}
 		let fetchUrl = new URL(this._searchMetadatamodelUrl)
 		if (typeof authContextDirectoryGroupID === 'string' && authContextDirectoryGroupID.length > 0) {
 			fetchUrl.searchParams.append(Domain.Entities.MetadataModel.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, authContextDirectoryGroupID)
@@ -46,21 +45,13 @@ export class SearchData implements Domain.Interfaces.MetadataModels.Search {
 		if (typeof targetJoinDepth === 'number') {
 			fetchUrl.searchParams.append(Domain.Entities.MetadataModel.SearchParams.TARGET_JOIN_DEPTH, `${targetJoinDepth}`)
 		}
-		const fetchResponse = await this.fetch(fetchUrl)
+		const fetchResponse = await this.fetch(fetchUrl, { credentials: 'include' })
 		const fetchData = await fetchResponse.json()
 		if (fetchResponse.ok) {
 			this.searchmetadatamodel = structuredClone(fetchData)
 		} else {
 			throw [fetchResponse.status, fetchResponse.statusText]
 		}
-	}
-
-	private async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-		if (this.authenticatedFetch) {
-			return this.authenticatedFetch.Fetch(input, init)
-		}
-		
-		return fetch(input, init)
 	}
 
 	/**
@@ -80,16 +71,8 @@ export class SearchData implements Domain.Interfaces.MetadataModels.Search {
 		targetJoinDepth: number | undefined,
 		skipIfFgDisabled: boolean | undefined,
 		skipIfDataExtraction: boolean | undefined,
-		signal: AbortSignal | null | undefined,
-		customFetch?: {
-			(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
-			(input: string | URL | globalThis.Request, init?: RequestInit): Promise<Response>
-		}
+		signal: AbortSignal | null | undefined
 	) {
-		let goFetch = fetch
-		if (customFetch) {
-			goFetch = customFetch
-		}
 		let metadataModelSearch: Domain.Entities.MetadataModel.ISearch = {}
 		if (this.searchmetadatamodel && Object.keys(this.searchmetadatamodel).length > 0) {
 			metadataModelSearch.metadata_model = this.searchmetadatamodel
@@ -118,7 +101,8 @@ export class SearchData implements Domain.Interfaces.MetadataModels.Search {
 		const fetchResponse = await this.fetch(fetchUrl, {
 			method: 'POST',
 			body: JSON.stringify(metadataModelSearch),
-			signal
+			signal,
+			credentials: 'include'
 		})
 
 		const fetchData = await fetchResponse.json()

@@ -1,13 +1,16 @@
-import { State, Utils, Domain, MetadataModel } from '$lib'
+import { State, Utils, Domain, MetadataModel, Interfaces } from '$lib'
 
 export interface AdditionalProperties {
 	abstractionsid?: string
 	abstractionidquerycondition?: MetadataModel.QueryConditions
 }
 
-export function NewViewSearch(abstractionsID?: string): Domain.Interfaces.MetadataModels.ViewSearch & AdditionalProperties {
+export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch & AdditionalProperties {
 	let d: Domain.Interfaces.MetadataModels.ViewSearch & AdditionalProperties = {
-		abstractionsid: abstractionsID,
+		search: new Interfaces.MetadataModels.SearchData(
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Comments}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Reviews.Comments}${Domain.Entities.Url.MetadataModelSearchPath}`
+		),
 		context: 'View Search',
 		queryconditions: [],
 		quicksearchquerycondition: {},
@@ -38,7 +41,7 @@ export function NewViewSearch(abstractionsID?: string): Domain.Interfaces.Metada
 					]),
 					this.authcontextdirectorygroupid || undefined,
 					this.authcontextdirectorygroupid || undefined,
-					undefined,
+					1,
 					false,
 					false,
 					undefined
@@ -78,7 +81,7 @@ export function NewViewSearch(abstractionsID?: string): Domain.Interfaces.Metada
 
 			if (Object.keys(this.search.searchmetadatamodel).length === 0) {
 				try {
-					await this.search.FetchMetadataModel(this.authcontextdirectorygroupid, undefined, undefined)
+					await this.search.FetchMetadataModel(this.authcontextdirectorygroupid, 1, undefined)
 				} catch (e) {
 					const DEFAULT_ERROR = `Get ${Domain.Entities.AbstractionsReviewsComments.RepositoryName} metadata-model failed`
 
@@ -108,7 +111,7 @@ export function NewViewSearch(abstractionsID?: string): Domain.Interfaces.Metada
 
 			this.searchmetadatamodel = this.search.searchmetadatamodel
 
-			if (typeof abstractionsID === 'string' && abstractionsID.length > 0) {
+			if (typeof this.abstractionsid === 'string' && this.abstractionsid.length > 0) {
 				const abstractionIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
 					this.searchmetadatamodel,
 					Domain.Entities.AbstractionsReviewsComments.FieldColumn.AbstractionsID,
@@ -132,7 +135,7 @@ export function NewViewSearch(abstractionsID?: string): Domain.Interfaces.Metada
 									[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
 									[MetadataModel.FConditionProperties.VALUE]: {
 										[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-										[MetadataModel.FSelectProperties.VALUE]: abstractionsID
+										[MetadataModel.FSelectProperties.VALUE]: this.abstractionsid
 									}
 								}
 							]

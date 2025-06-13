@@ -65,8 +65,6 @@
 			}
 		}
 	}
-
-	
 </script>
 
 <div class="flex h-fit {groupAuthorizationRulesQCKey ? 'w-full' : 'w-fit'} flex-col">

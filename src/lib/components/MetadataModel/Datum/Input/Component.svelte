@@ -52,7 +52,7 @@ Props:
 		theme = Domain.Entities.Theme.Theme.LIGHT,
 		notification = undefined
 	}: Props = $props()
-	
+
 	let viewDatum: any = $derived(JSON.parse(JSON.stringify(datum)))
 
 	function onupdatedata() {
@@ -117,7 +117,7 @@ Props:
 		}
 	}}
 	{copiedcutfieldgroupkey}
-	themecolor={themecolor}
+	{themecolor}
 	{theme}
 	setcopiedfieldgroupkey={(fieldGroupKey: string, arrayIndexPlaceholders: number[]) => {
 		const fieldGroupData = Json.GetValueInObject(viewDatum, MetadataModel.PreparePathToValueInObject(fieldGroupKey, arrayIndexPlaceholders))

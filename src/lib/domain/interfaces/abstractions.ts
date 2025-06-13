@@ -6,9 +6,21 @@ import type { Domain } from '$lib'
 export interface Datum {
 	previousDatum?: any
 
+	fetch: Domain.Interfaces.Fetch
+
+	telemetry?: Domain.Interfaces.ITelemetry
+
+	context: string
+
+	authcontextdirectorygroupid?: string
+
+	verboseresponse?: boolean
+
+	currentdirectorygroupid: string
+
 	id?: string
 
-    storage_file?: Domain.Entities.StorageFiles.Interface
+	storage_file?: Domain.Entities.StorageFiles.Interface
 
 	completed: boolean
 
@@ -21,26 +33,6 @@ export interface Datum {
 
 	reset?: () => void
 
-	update?: (
-		authFetch: Domain.Interfaces.AuthenticatedFetch,
-		directoryGroupID: string,
-		opts?: {
-			componentName?: string
-			telemetry?: Domain.Interfaces.ITelemetry
-			authContextDirectoryGroupID?: string
-			verboseResponse?: boolean
-		}
-	) => Promise<Domain.Entities.State.Toast>
-	delete?: (
-		authFetch: Domain.Interfaces.AuthenticatedFetch,
-		directoryGroupID: string,
-		opts?: {
-			componentName?: string
-			telemetry?: Domain.Interfaces.ITelemetry
-			authContextDirectoryGroupID?: string
-			verboseResponse?: boolean
-		}
-	) => Promise<Domain.Entities.State.Toast>
-
-	telemetry?: Domain.Interfaces.ITelemetry
+	update?: () => Promise<Domain.Entities.State.Toast>
+	delete?: () => Promise<Domain.Entities.State.Toast>
 }

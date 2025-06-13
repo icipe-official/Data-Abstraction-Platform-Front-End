@@ -2,11 +2,16 @@ import { Domain } from '$lib'
 
 export class FieldAnyGetMetadataModel implements Domain.Interfaces.MetadataModels.IFieldAnyGetMetadataModel {
 	private telemetry?: Domain.Interfaces.ITelemetry
-	private authenticatedFetch?: Domain.Interfaces.AuthenticatedFetch
+	private fetch: Domain.Interfaces.Fetch = fetch
 
-	constructor(telemetry?: Domain.Interfaces.ITelemetry, authenticatedFetch?: Domain.Interfaces.AuthenticatedFetch) {
+	constructor(
+		telemetry?: Domain.Interfaces.ITelemetry,
+		customfetch?: Domain.Interfaces.Fetch
+	) {
 		this.telemetry = telemetry
-		this.authenticatedFetch = authenticatedFetch
+		if (customfetch) {
+			this.fetch = customfetch
+		}
 	}
 
 	async GetMetadataModel(actionID: string, currentFgKey: string, tableCollectionUid: string, argument: any) {
@@ -35,7 +40,7 @@ export class FieldAnyGetMetadataModel implements Domain.Interfaces.MetadataModel
 					}
 					fetchUrl = new URL(Domain.Entities.Url.ApiUrlPaths.MetadataModel)
 					fetchUrl.pathname = fetchUrl.pathname + `/${actionID}/${argument[0]}`
-					fetchResponse = await this.fetch(fetchUrl)
+					fetchResponse = await this.fetch(fetchUrl, { credentials: 'include' })
 					fetchData = await fetchResponse.json()
 					if (fetchResponse.ok) {
 						if (typeof fetchData !== 'object') {
@@ -51,7 +56,7 @@ export class FieldAnyGetMetadataModel implements Domain.Interfaces.MetadataModel
 					}
 					fetchUrl = new URL(Domain.Entities.Url.ApiUrlPaths.Abstractions.Url)
 					fetchUrl.pathname = fetchUrl.pathname + `/metadata-model/${argument[0]}`
-					fetchResponse = await this.fetch(fetchUrl)
+					fetchResponse = await this.fetch(fetchUrl, { credentials: 'include' })
 					fetchData = await fetchResponse.json()
 					if (fetchResponse.ok) {
 						if (typeof fetchData !== 'object') {
@@ -68,13 +73,5 @@ export class FieldAnyGetMetadataModel implements Domain.Interfaces.MetadataModel
 			console.error(e)
 			return undefined
 		}
-	}
-
-	private async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-		if (this.authenticatedFetch) {
-			return this.authenticatedFetch.Fetch(input, init)
-		}
-
-		return fetch(input, init)
 	}
 }

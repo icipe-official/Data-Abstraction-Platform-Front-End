@@ -8,8 +8,6 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			Theme?: Domain.Entities.Theme.Theme
-			AuthenticationHeaders?: Domain.Entities.Iam.AuthenticationHeaders
-			AuthenticationTokens?: Domain.Entities.Iam.AccessRefreshToken
 		}
 		// interface PageData {}
 		// interface PageState {}

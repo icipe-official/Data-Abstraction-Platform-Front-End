@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Component, Domain, Interfaces, MetadataModel, State, Utils } from '$lib'
+	import { untrack } from 'svelte'
 
 	const COMPONENT_NAME = 'administration-directory-groups'
 
@@ -19,129 +20,31 @@
 
 	let authContextDirectoryGroupID = $derived(directorygroupid)
 
-	let directoryGroupsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let directoryGroupsSearch = $state(Interfaces.DirectoryGroups.NewViewSearch())
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
+			untrack(() => {
+				directoryGroupsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				directoryGroupsSearch.context = COMPONENT_NAME
+				directoryGroupsSearch.telemetry = telemetry
+			})
 		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
 	})
-
-	let directoryGroupsQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let quickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let directoryGroupsSearchMetadataModel: any = $state({})
-	let directoryGroupsSearchResults: any[] = $state([])
-	let directoryGroupsSearchFilterExcludeIndexes: number[] = $state([])
-
-	async function getDisplayDirectoryGroups() {
-		if (!directoryGroupsSearch) {
-			throw [401, 'Unauthorized']
-		}
-
-		if (Object.keys(directoryGroupsSearch.searchmetadatamodel).length === 0) {
-			try {
-				await directoryGroupsSearch.FetchMetadataModel(authContextDirectoryGroupID, undefined, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.DirectoryGroups.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
-
-		directoryGroupsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(directoryGroupsSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.DirectoryGroups.RepositoryName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.DirectoryGroups.FieldColumn.LastUpdatedOn
-			) {
-				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-			}
-
-			return property
-		})
-
-		directoryGroupsSearchMetadataModel = directoryGroupsSearch.searchmetadatamodel
-		try {
-			await searchDirectoryGroups()
-		} catch (e) {
-			throw e
-		}
-	}
-
-	function updateMetadataModel(value: any) {
-		directoryGroupsSearchMetadataModel = value
-		if (directoryGroupsSearch) {
-			directoryGroupsSearch.searchmetadatamodel = directoryGroupsSearchMetadataModel
-		}
-	}
-
-	async function searchDirectoryGroups() {
-		if (!directoryGroupsSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.DirectoryGroups.RepositoryName}...`
-		try {
-			await directoryGroupsSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(directoryGroupsQueryConditions, [quickSearchQueryCondition]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				undefined,
-				false,
-				false,
-				undefined
-			)
-
-			directoryGroupsSearchFilterExcludeIndexes = []
-			directoryGroupsSearchResults = directoryGroupsSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${directoryGroupsSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.DirectoryGroups.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-
-	let dataView: Component.View.View = $state('list')
-
-	let showDirectoryGroupsQueryPanel: boolean = $state(false)
 
 	let windowWidth: number = $state(0)
 
-	let selectedDirectoryGroups: number[] = $state([])
 	let showSelectedActions: boolean = $state(false)
 
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
-
 	async function deleteDeactivateSelectedDirectoryGroups() {
-		const data = selectedDirectoryGroups.map((dIndex) => directoryGroupsSearchResults[dIndex])
+		if (!Array.isArray(directoryGroupsSearch.selectedindexes) || !Array.isArray(directoryGroupsSearch.searchresults)) {
+			return
+		}
+
+		const data = directoryGroupsSearch.selectedindexes.map((dIndex) => directoryGroupsSearch.searchresults![dIndex])
 
 		if (data.length === 0 || !directorygroupid) {
 			return
@@ -160,8 +63,9 @@
 
 			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.DEBUG, State.Loading.value, 'fetchUrl', fetchUrl, 'data', data)
 
-			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+			const fetchResponse = await fetch(fetchUrl, {
 				method: 'POST',
+				credentials: 'include',
 				body: JSON.stringify(data)
 			})
 
@@ -175,7 +79,7 @@
 				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
 				State.Toast.Message = toastData.message
 				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
-				selectedDirectoryGroups = []
+				directoryGroupsSearch.selectedindexes = []
 				showSelectedActions = false
 			} else {
 				handleError(fetchResponse.status, fetchData)
@@ -215,162 +119,180 @@
 <svelte:window bind:innerWidth={windowWidth} />
 
 <div class="flex flex-1 flex-col gap-y-2 overflow-hidden">
-	{#await getDisplayDirectoryGroups()}
-		<div class="flex h-full w-full flex-[9.5] justify-center">
-			<span class="self-center">
-				<span class="loading text-primary loading-ball loading-md"></span>
-				<span class="loading text-secondary loading-ball loading-lg"></span>
-				<span class="loading text-accent loading-ball loading-xl"></span>
-			</span>
-		</div>
-	{:then}
-		<header class="z-[2] flex justify-between gap-x-2">
-			{#await import('$lib/components/View/DirectoryGroups/SearchBar/Component.svelte') then { default: ViewDirectoryGroupsSearchBar }}
-				<div class="max-md:w-full md:w-[60%]">
-					<ViewDirectoryGroupsSearchBar
-						metadatamodel={directoryGroupsSearchMetadataModel}
-						{themecolor}
-						{theme}
-						{telemetry}
-						querycondition={quickSearchQueryCondition}
-						updatequerycondition={(value) => {
-							quickSearchQueryCondition = value
-						}}
-						showquerypanel={() => {
-							showDirectoryGroupsQueryPanel = !showDirectoryGroupsQueryPanel
-						}}
-						search={() => {
-							searchDirectoryGroups()
-						}}
-					></ViewDirectoryGroupsSearchBar>
-				</div>
-			{/await}
-
-			<button
-				class="btn btn-md btn-circle tooltip tooltip-left self-center {themecolor === Domain.Entities.Theme.Color.PRIMARY
-					? 'btn-primary tooltip-primary'
-					: themecolor === Domain.Entities.Theme.Color.SECONDARY
-						? 'btn-secondary tooltip-secondary'
-						: 'btn-accent tooltip-accent'}"
-				aria-label="Create New group"
-				data-tip="Create new group"
-				onclick={() => {
-					selectedDirectoryGroup = -1
-				}}
-			>
-				<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
-				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path fill="var({Utils.Theme.GetColorContent(themecolor)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
-				</svg>
-			</button>
-		</header>
-
-		<div class="divider mb-0 mt-0"></div>
-
-		<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-			{#if showDirectoryGroupsQueryPanel}
-				<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-					{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-						<QueryPanel
+	{#if directoryGroupsSearch.getdisplaydata}
+		{#await directoryGroupsSearch.getdisplaydata()}
+			<div class="flex h-full w-full flex-[9.5] justify-center">
+				<span class="self-center">
+					<span class="loading text-primary loading-ball loading-md"></span>
+					<span class="loading text-secondary loading-ball loading-lg"></span>
+					<span class="loading text-accent loading-ball loading-xl"></span>
+				</span>
+			</div>
+		{:then}
+			<header class="z-[2] flex justify-between gap-x-2">
+				{#await import('$lib/components/View/DirectoryGroups/SearchBar/Component.svelte') then { default: ViewDirectoryGroupsSearchBar }}
+					<div class="max-md:w-full md:w-[60%]">
+						<ViewDirectoryGroupsSearchBar
+							metadatamodel={directoryGroupsSearch.searchmetadatamodel}
 							{themecolor}
 							{theme}
 							{telemetry}
-							metadatamodel={directoryGroupsSearchMetadataModel}
-							data={directoryGroupsSearchResults}
-							queryconditions={directoryGroupsQueryConditions}
-							filterexcludeindexes={directoryGroupsSearchFilterExcludeIndexes}
-							updatefilterexcludeindexes={(value) => {
-								directoryGroupsSearchFilterExcludeIndexes = value
-								State.Toast.Type = Domain.Entities.Toast.Type.INFO
-								State.Toast.Message = `${directoryGroupsSearchFilterExcludeIndexes.length} local results filtered out`
+							querycondition={directoryGroupsSearch.quicksearchquerycondition}
+							updatequerycondition={(value) => {
+								directoryGroupsSearch.quicksearchquerycondition = value
 							}}
-							updatemetadatamodel={updateMetadataModel}
-							updatequeryconditions={(value) => {
-								directoryGroupsQueryConditions = value
+							showquerypanel={() => {
+								directoryGroupsSearch.showquerypanel = !directoryGroupsSearch.showquerypanel
 							}}
-							hidequerypanel={() => (showDirectoryGroupsQueryPanel = false)}
-						></QueryPanel>
-					{/await}
-				</section>
-			{/if}
+							search={() => {
+								if (directoryGroupsSearch.searchdata) {
+									directoryGroupsSearch.searchdata()
+								}
+							}}
+						></ViewDirectoryGroupsSearchBar>
+					</div>
+				{/await}
 
-			{#if !showDirectoryGroupsQueryPanel || windowWidth > 1000}
-				{#if directoryGroupsSearchResults.length > 0}
-					<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-						<section class="z-[2] flex w-full">
-							{#if selectedDirectoryGroups.length > 0}
-								<div class="flex flex-col p-2">
-									<button
-										class="btn btn-md {themecolor === Domain.Entities.Theme.Color.PRIMARY
-											? 'btn-primary'
-											: themecolor === Domain.Entities.Theme.Color.SECONDARY
-												? 'btn-secondary'
-												: 'btn-accent'} justify-start gap-x-1"
-										aria-label="Selected Rows Actions"
-										onclick={() => (showSelectedActions = !showSelectedActions)}
-									>
-										<!--mdi:menu source: https://icon-sets.iconify.design-->
-										<svg class="self-center" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-											<path fill="var({Utils.Theme.GetColorContent(themecolor)})" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
-										</svg>
-										<span class="self-center">{selectedDirectoryGroups.length} selected</span>
-									</button>
+				<button
+					class="btn btn-md btn-circle tooltip tooltip-left self-center {themecolor === Domain.Entities.Theme.Color.PRIMARY
+						? 'btn-primary tooltip-primary'
+						: themecolor === Domain.Entities.Theme.Color.SECONDARY
+							? 'btn-secondary tooltip-secondary'
+							: 'btn-accent tooltip-accent'}"
+					aria-label="Create New group"
+					data-tip="Create new group"
+					onclick={() => {
+						selectedDirectoryGroup = -1
+					}}
+				>
+					<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path fill="var({Utils.Theme.GetColorContent(themecolor)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
+					</svg>
+				</button>
+			</header>
 
-									{#if showSelectedActions}
-										<div class="relative w-full">
-											<div
-												class="absolute w-full {theme === Domain.Entities.Theme.Theme.DARK
-													? 'bg-base-200'
-													: 'bg-white'} flex min-w-[250px] flex-col gap-2 rounded-lg p-2 shadow-md shadow-gray-800"
-											>
-												<button class="btn btn-ghost btm-sm justify-start" onclick={deleteDeactivateSelectedDirectoryGroups}>
-													1 - Delete/Deactivate
-												</button>
-											</div>
-										</div>
-									{/if}
-								</div>
-							{/if}
+			<div class="divider mb-0 mt-0"></div>
 
-							{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-								<div class="h-fit w-full flex-1 self-center">
-									<ViewHeaderData title={'Groups'} view={dataView} {themecolor} {theme} updateview={(value) => (dataView = value)}></ViewHeaderData>
-								</div>
-							{/await}
-						</section>
-
-						{#await import('$lib/components/View/DirectoryGroups/Data/Component.svelte') then { default: ViewDirectoryGroupsData }}
-							<ViewDirectoryGroupsData
-								metadatamodel={directoryGroupsSearchMetadataModel}
-								data={directoryGroupsSearchResults}
+			<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+				{#if directoryGroupsSearch.showquerypanel}
+					<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+						{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+							<QueryPanel
 								{themecolor}
 								{theme}
 								{telemetry}
-								addselectcolumn={true}
-								view={dataView}
-								updatemetadatamodel={updateMetadataModel}
-								filterexcludeindexes={directoryGroupsSearchFilterExcludeIndexes}
-								selecteddataindexes={selectedDirectoryGroups}
-								updateselecteddataindexes={(value) => (selectedDirectoryGroups = value)}
-								rowclick={(_, index) => (selectedDirectoryGroup = index)}
-								addlaunchgroup={true}
-							></ViewDirectoryGroupsData>
+								metadatamodel={directoryGroupsSearch.searchmetadatamodel}
+								data={directoryGroupsSearch.searchresults}
+								queryconditions={directoryGroupsSearch.queryconditions}
+								filterexcludeindexes={directoryGroupsSearch.filterexcludeindexes}
+								updatefilterexcludeindexes={(value) => {
+									directoryGroupsSearch.filterexcludeindexes = value
+									State.Toast.Type = Domain.Entities.Toast.Type.INFO
+									State.Toast.Message = `${directoryGroupsSearch.filterexcludeindexes.length} local results filtered out`
+								}}
+								updatemetadatamodel={(value: any) => {
+									if (directoryGroupsSearch.updatemedataModel) {
+										directoryGroupsSearch.updatemedataModel(value)
+									}
+								}}
+								updatequeryconditions={(value) => {
+									directoryGroupsSearch.queryconditions = value
+								}}
+								hidequerypanel={() => (directoryGroupsSearch.showquerypanel = false)}
+							></QueryPanel>
 						{/await}
 					</section>
-				{:else}
-					<div class="flex flex-1 justify-center rounded-md p-2 {theme === Domain.Entities.Theme.Theme.DARK ? 'bg-gray-700' : 'bg-gray-200'}">
-						<span class="flex self-center text-lg"> View and manage groups. </span>
-					</div>
 				{/if}
-			{/if}
-		</main>
-	{:catch e}
-		{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
-			<div class="flex h-full w-full flex-[9.5] justify-center">
-				<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
-			</div>
+
+				{#if !directoryGroupsSearch.showquerypanel || windowWidth > 1000}
+					{#if Array.isArray(directoryGroupsSearch.searchresults) && directoryGroupsSearch.searchresults.length > 0}
+						<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+							<section class="z-[2] flex w-full">
+								{#if directoryGroupsSearch.selectedindexes!.length > 0}
+									<div class="flex flex-col p-2">
+										<button
+											class="btn btn-md {themecolor === Domain.Entities.Theme.Color.PRIMARY
+												? 'btn-primary'
+												: themecolor === Domain.Entities.Theme.Color.SECONDARY
+													? 'btn-secondary'
+													: 'btn-accent'} justify-start gap-x-1"
+											aria-label="Selected Rows Actions"
+											onclick={() => (showSelectedActions = !showSelectedActions)}
+										>
+											<!--mdi:menu source: https://icon-sets.iconify.design-->
+											<svg class="self-center" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+												<path fill="var({Utils.Theme.GetColorContent(themecolor)})" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
+											</svg>
+											<span class="self-center">{directoryGroupsSearch.selectedindexes!.length} selected</span>
+										</button>
+
+										{#if showSelectedActions}
+											<div class="relative w-full">
+												<div
+													class="absolute w-full {theme === Domain.Entities.Theme.Theme.DARK
+														? 'bg-base-200'
+														: 'bg-white'} flex min-w-[250px] flex-col gap-2 rounded-lg p-2 shadow-md shadow-gray-800"
+												>
+													<button class="btn btn-ghost btm-sm justify-start" onclick={deleteDeactivateSelectedDirectoryGroups}>
+														1 - Delete/Deactivate
+													</button>
+												</div>
+											</div>
+										{/if}
+									</div>
+								{/if}
+
+								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+									<div class="h-fit w-full flex-1 self-center">
+										<ViewHeaderData
+											title={'Groups'}
+											view={directoryGroupsSearch.view}
+											{themecolor}
+											{theme}
+											updateview={(value) => (directoryGroupsSearch.view = value)}
+										></ViewHeaderData>
+									</div>
+								{/await}
+							</section>
+
+							{#await import('$lib/components/View/DirectoryGroups/Data/Component.svelte') then { default: ViewDirectoryGroupsData }}
+								<ViewDirectoryGroupsData
+									metadatamodel={directoryGroupsSearch.searchmetadatamodel}
+									data={directoryGroupsSearch.searchresults}
+									{themecolor}
+									{theme}
+									{telemetry}
+									addselectcolumn={true}
+									view={directoryGroupsSearch.view}
+									updatemetadatamodel={(value: any) => {
+										if (directoryGroupsSearch.updatemedataModel) {
+											directoryGroupsSearch.updatemedataModel(value)
+										}
+									}}
+									filterexcludeindexes={directoryGroupsSearch.filterexcludeindexes}
+									selecteddataindexes={directoryGroupsSearch.selectedindexes}
+									updateselecteddataindexes={(value) => (directoryGroupsSearch.selectedindexes = value)}
+									rowclick={(_, index) => (selectedDirectoryGroup = index)}
+									addlaunchgroup={true}
+								></ViewDirectoryGroupsData>
+							{/await}
+						</section>
+					{:else}
+						<div class="flex flex-1 justify-center rounded-md p-2 {theme === Domain.Entities.Theme.Theme.DARK ? 'bg-gray-700' : 'bg-gray-200'}">
+							<span class="flex self-center text-lg"> View and manage groups. </span>
+						</div>
+					{/if}
+				{/if}
+			</main>
+		{:catch e}
+			{#await import('$lib/components/Error/Component.svelte') then { default: Error }}
+				<div class="flex h-full w-full flex-[9.5] justify-center">
+					<span class="self-center"><Error status={e[0]} message={e[1]} shadow={'inner'}></Error></span>
+				</div>
+			{/await}
 		{/await}
-	{/await}
+	{/if}
 </div>
 
 <dialog bind:this={selectedDirectoryGroupDialogElement} id="selected-directory-group-dialog" class="modal">
@@ -391,7 +313,9 @@
 					onclick={() => {
 						selectedDirectoryGroup = undefined
 						selectedDirectoryGroupDialogElement.close()
-						searchDirectoryGroups()
+						if (directoryGroupsSearch.searchdata) {
+							directoryGroupsSearch.searchdata()
+						}
 					}}
 				>
 					<!--mdi:close-circle source: https://icon-sets.iconify.design-->
@@ -407,8 +331,8 @@
 			<main class="flex flex-1 overflow-hidden p-2">
 				{#await import('./Datum.svelte') then { default: Datum }}
 					<Datum
-						metadatamodel={selectedDirectoryGroup > -1 && directoryGroupsSearchMetadataModel}
-						datum={selectedDirectoryGroup > -1 && directoryGroupsSearchResults[selectedDirectoryGroup]}
+						metadatamodel={selectedDirectoryGroup > -1 && directoryGroupsSearch.searchmetadatamodel}
+						datum={selectedDirectoryGroup > -1 && directoryGroupsSearch.searchresults![selectedDirectoryGroup]}
 						{theme}
 						{themecolor}
 						{telemetry}

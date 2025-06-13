@@ -76,7 +76,6 @@
 					viewQueryConditions = value
 					onupdatequeryconditions()
 				}}
-				
 			></MetadataModelQuery>
 		</section>
 

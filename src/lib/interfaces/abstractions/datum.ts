@@ -1,13 +1,29 @@
 import { Domain, Interfaces, Json, MetadataModel, Utils } from '$lib'
 
-export async function Datum(
-	authFetch: Domain.Interfaces.AuthenticatedFetch,
-	fetchedData?: Domain.Entities.MetadataModel.IDatum,
-	telemetry?: Domain.Interfaces.ITelemetry,
+export async function Datum(args: {
+	customFetch?: Domain.Interfaces.Fetch
+	fetchedData?: Domain.Entities.MetadataModel.IDatum
+	telemetry?: Domain.Interfaces.ITelemetry
 	directoryGroupID?: string
-): Promise<Domain.Interfaces.Abstractions.Datum> {
+	currentDirectoryGroupID: string
+	authContextDirectoryGroupID?: string
+	verboseResponse?: boolean
+	context?: string
+}): Promise<Domain.Interfaces.Abstractions.Datum> {
 	let d: Domain.Interfaces.Abstractions.Datum = {
 		completed: false,
+
+		telemetry: args.telemetry,
+
+		context: args.context ? args.context : `${Domain.Entities.Abstractions.RepositoryName} datum`,
+
+		authcontextdirectorygroupid: args.authContextDirectoryGroupID,
+
+		verboseresponse: args.verboseResponse || false,
+
+		currentdirectorygroupid: args.currentDirectoryGroupID,
+
+		fetch: args.customFetch ? args.customFetch : fetch,
 
 		tags: [],
 		updateTags(index, value) {
@@ -40,17 +56,8 @@ export async function Datum(
 			this.data = {}
 		},
 
-		async update(
-			authFetch: Domain.Interfaces.AuthenticatedFetch,
-			directoryGroupID: string,
-			opts?: {
-				componentName?: string
-				telemetry?: Domain.Interfaces.ITelemetry
-				authContextDirectoryGroupID?: string
-				verboseResponse?: boolean
-			}
-		) {
-			let sectionName = opts?.componentName || `${Domain.Entities.Url.Action.UPDATE} ${Domain.Entities.Abstractions.RepositoryName}`
+		async update() {
+			let sectionName = this.context || `${Domain.Entities.Url.Action.UPDATE} ${Domain.Entities.Abstractions.RepositoryName}`
 
 			if (!this.id || !this.previousDatum) {
 				throw undefined
@@ -81,15 +88,15 @@ export async function Datum(
 
 			try {
 				const fetchUrl = new URL(`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}/${Domain.Entities.Url.Action.UPDATE}`)
-				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID, directoryGroupID)
-				if (opts?.authContextDirectoryGroupID) {
-					fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, opts.authContextDirectoryGroupID)
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID, this.currentdirectorygroupid)
+				if (this.authcontextdirectorygroupid) {
+					fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, this.authcontextdirectorygroupid)
 				}
-				if (opts?.verboseResponse) {
+				if (this.verboseresponse) {
 					fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.VERBOSE_RESPONSE, `${true}`)
 				}
 
-				opts?.telemetry?.Log(
+				this.telemetry?.Log(
 					sectionName,
 					true,
 					Domain.Entities.Telemetry.LogLevel.DEBUG,
@@ -100,8 +107,9 @@ export async function Datum(
 					data
 				)
 
-				const fetchResponse = await authFetch.Fetch(fetchUrl, {
+				const fetchResponse = await this.fetch(fetchUrl, {
 					method: 'POST',
+					credentials: 'include',
 					body: JSON.stringify([data])
 				})
 
@@ -142,7 +150,7 @@ export async function Datum(
 				}
 			} catch (e) {
 				const ERROR = `${Domain.Entities.Url.Action.UPDATE} ${Domain.Entities.Abstractions.RepositoryName} failed`
-				opts?.telemetry?.Log(sectionName, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+				this.telemetry?.Log(sectionName, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
 				if (Array.isArray(e)) {
 					throw e
 				} else {
@@ -151,17 +159,8 @@ export async function Datum(
 			}
 		},
 
-		async delete(
-			authFetch: Domain.Interfaces.AuthenticatedFetch,
-			directoryGroupID: string,
-			opts?: {
-				componentName?: string
-				telemetry?: Domain.Interfaces.ITelemetry
-				authContextDirectoryGroupID?: string
-				verboseResponse?: boolean
-			}
-		) {
-			let sectionName = opts?.componentName || `${Domain.Entities.Url.Action.DELETE} ${Domain.Entities.Abstractions.RepositoryName}`
+		async delete() {
+			let sectionName = this.context || `${Domain.Entities.Url.Action.DELETE} ${Domain.Entities.Abstractions.RepositoryName}`
 
 			if (!this.id) {
 				throw undefined
@@ -172,15 +171,15 @@ export async function Datum(
 			}
 			try {
 				const fetchUrl = new URL(`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}/${Domain.Entities.Url.Action.DELETE}`)
-				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID, directoryGroupID)
-				if (opts?.authContextDirectoryGroupID) {
-					fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, opts.authContextDirectoryGroupID)
+				fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID, this.currentdirectorygroupid)
+				if (this.authcontextdirectorygroupid) {
+					fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID, this.authcontextdirectorygroupid)
 				}
-				if (opts?.verboseResponse) {
+				if (this.verboseresponse) {
 					fetchUrl.searchParams.append(Domain.Entities.Url.SearchParams.VERBOSE_RESPONSE, `${true}`)
 				}
 
-				opts?.telemetry?.Log(
+				this.telemetry?.Log(
 					sectionName,
 					true,
 					Domain.Entities.Telemetry.LogLevel.DEBUG,
@@ -191,8 +190,9 @@ export async function Datum(
 					data
 				)
 
-				const fetchResponse = await authFetch.Fetch(fetchUrl, {
+				const fetchResponse = await this.fetch(fetchUrl, {
 					method: 'POST',
+					credentials: 'include',
 					body: JSON.stringify([data])
 				})
 
@@ -219,7 +219,7 @@ export async function Datum(
 				}
 			} catch (e) {
 				const ERROR = `${Domain.Entities.Url.Action.DELETE} ${Domain.Entities.Abstractions.RepositoryName} failed`
-				opts?.telemetry?.Log(sectionName, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
+				this.telemetry?.Log(sectionName, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
 				if (Array.isArray(e)) {
 					throw e
 				} else {
@@ -229,9 +229,9 @@ export async function Datum(
 		}
 	}
 
-	if (fetchedData && fetchedData.metadata_model && fetchedData.datum) {
-		const datum = fetchedData.datum
-		const metadataModel = fetchedData.metadata_model
+	if (args.fetchedData && args.fetchedData.metadata_model && args.fetchedData.datum) {
+		const datum = args.fetchedData.datum
+		const metadataModel = args.fetchedData.metadata_model
 		const tableCollectionUID = metadataModel[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID]
 
 		let value = undefined
@@ -249,7 +249,7 @@ export async function Datum(
 
 		if (storageFileQCKey) {
 			const storageFile = Json.GetValueInObject(
-				fetchedData.datum,
+				args.fetchedData.datum,
 				storageFileQCKey.qcKey.replace(new RegExp(MetadataModel.ARRAY_PATH_REGEX_SEARCH, 'g'), '[0]')
 			)
 
@@ -266,14 +266,14 @@ export async function Datum(
 		)
 		if (Array.isArray(value) && value.length > 0) {
 			try {
-				d.dataMetadataModel = await new Interfaces.MetadataModels.FieldAnyGetMetadataModel(telemetry, authFetch).GetMetadataModel(
+				d.dataMetadataModel = await new Interfaces.MetadataModels.FieldAnyGetMetadataModel(args.telemetry, fetch).GetMetadataModel(
 					Domain.Entities.AbstractionsDirectoryGroups.RepositoryName,
 					metadataModel[MetadataModel.FgProperties.FIELD_GROUP_KEY],
 					metadataModel[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
 					[value]
 				)
 			} catch (e) {
-				telemetry?.Log(
+				args.telemetry?.Log(
 					`Init ${Domain.Entities.Abstractions.RepositoryName} Datum`,
 					true,
 					Domain.Entities.Telemetry.LogLevel.ERROR,
@@ -299,16 +299,16 @@ export async function Datum(
 			d.tags = value
 		}
 	} else {
-		if (directoryGroupID) {
+		if (args.directoryGroupID) {
 			try {
-				d.dataMetadataModel = await new Interfaces.MetadataModels.FieldAnyGetMetadataModel(telemetry, authFetch).GetMetadataModel(
+				d.dataMetadataModel = await new Interfaces.MetadataModels.FieldAnyGetMetadataModel(args.telemetry, args.customFetch).GetMetadataModel(
 					Domain.Entities.AbstractionsDirectoryGroups.RepositoryName,
-					fetchedData?.metadata_model[MetadataModel.FgProperties.FIELD_GROUP_KEY] || '$',
-					fetchedData?.metadata_model[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID] || Domain.Entities.Abstractions.RepositoryName,
-					[directoryGroupID]
+					args.fetchedData?.metadata_model[MetadataModel.FgProperties.FIELD_GROUP_KEY] || '$',
+					args.fetchedData?.metadata_model[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID] || Domain.Entities.Abstractions.RepositoryName,
+					[args.directoryGroupID]
 				)
 			} catch (e) {
-				telemetry?.Log(
+				d.telemetry?.Log(
 					`Init ${Domain.Entities.Abstractions.RepositoryName} Datum`,
 					true,
 					Domain.Entities.Telemetry.LogLevel.ERROR,

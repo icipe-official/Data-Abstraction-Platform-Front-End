@@ -6,8 +6,7 @@ interface data {
 	directory_group_id?: string
 	current_datum?: Domain.Entities.MetadataModel.IDatum
 	theme?: Domain.Entities.Theme.Theme
-	tokens?: Domain.Entities.Iam.AccessRefreshToken
-	authentication_headers?: Domain.Entities.Iam.AuthenticationHeaders
+	
 }
 
 export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
@@ -17,13 +16,7 @@ export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
 		data.theme = locals.Theme
 	}
 
-	if (locals.AuthenticationHeaders) {
-		data.authentication_headers = locals.AuthenticationHeaders
-	}
-
-	if (locals.AuthenticationTokens) {
-		data.tokens = locals.AuthenticationTokens
-	}
+	
 
 	if (url.searchParams.get(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID)) {
 		data.directory_group_id = url.searchParams.get(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID)!
@@ -31,13 +24,14 @@ export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
 
 	let abstractionSearch: Domain.Interfaces.MetadataModels.Search
 
-	if (params.id && params.id.length >= 27 && data.tokens && data.authentication_headers) {
-		const authContextDirectoryGroupID = url.searchParams.get(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID) || data.directory_group_id
+	if (params.id && params.id.length >= 27) {
+		const authContextDirectoryGroupID =
+			url.searchParams.get(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID) || data.directory_group_id
 		try {
 			abstractionSearch = new Interfaces.MetadataModels.SearchData(
 				`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
 				`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-				new Interfaces.AuthenticatedFetch.Server(data.tokens, data.authentication_headers, fetch)
+				fetch
 			)
 
 			await abstractionSearch.FetchMetadataModel(authContextDirectoryGroupID || undefined, 1, undefined)

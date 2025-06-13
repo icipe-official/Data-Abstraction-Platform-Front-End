@@ -9,7 +9,7 @@ export const BasePath = (() => {
 
 		return basePath
 	}
-	
+
 	return '/'
 })()
 
@@ -20,7 +20,6 @@ export function GetLogLevel() {
 
 	return Number(env.PUBLIC_TELEMETRY_LOG_LEVEL)
 }
-
 
 export function GetLocationPath(path: string) {
 	return `${BasePath}${path}`

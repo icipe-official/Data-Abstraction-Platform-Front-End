@@ -8,10 +8,7 @@ export async function RefreshToken(
 		(input: string | URL | globalThis.Request, init?: RequestInit): Promise<Response>
 	}
 ): Promise<Domain.Entities.Iam.AccessRefreshToken> {
-	let goFetch = fetch
-	if (customFetch) {
-		goFetch = customFetch
-	}
+	let goFetch = customFetch ? customFetch : fetch
 
 	let headers: { [key: string]: string } = {}
 	if (token.access_token) {
@@ -41,10 +38,8 @@ export async function GetAuthenticationHeaders(customFetch?: {
 	(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
 	(input: string | URL | globalThis.Request, init?: RequestInit): Promise<Response>
 }): Promise<Domain.Entities.Iam.AuthenticationHeaders> {
-	let goFetch = fetch
-	if (customFetch) {
-		goFetch = customFetch
-	}
+	let goFetch = customFetch ? customFetch : fetch
+
 	try {
 		const fetchResponse = await goFetch(Domain.Entities.Url.ApiUrlPaths.Iam.AuthenticationHeaders, {
 			credentials: 'include'
@@ -61,40 +56,15 @@ export async function GetAuthenticationHeaders(customFetch?: {
 	}
 }
 
-export async function GetSession(
-	authenticationHeaders: Domain.Entities.Iam.AuthenticationHeaders,
-	authenticationTokens: Domain.Entities.Iam.AccessRefreshToken,
-	customFetch?: {
-		(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
-		(input: string | URL | globalThis.Request, init?: RequestInit): Promise<Response>
-	}
-): Promise<Domain.Entities.Iam.Session> {
-	let goFetch = fetch
-	if (customFetch) {
-		goFetch = customFetch
-	}
+export async function GetSession(customFetch?: {
+	(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
+	(input: string | URL | globalThis.Request, init?: RequestInit): Promise<Response>
+}): Promise<Domain.Entities.Iam.Session> {
+	let goFetch = customFetch ? customFetch : fetch
 
-	if (
-		!authenticationTokens.refresh_token ||
-		!authenticationTokens.access_token ||
-		!authenticationHeaders.access_token_header ||
-		!authenticationHeaders.refresh_token_header
-	) {
-		throw [
-			'authenticationTokens or authenticationHeaders not valid',
-			'authenticationTokens',
-			authenticationTokens,
-			'authenticationHeaders',
-			authenticationHeaders
-		]
-	}
-
-	const headers: { [Key: string]: string } = {}
-	headers[`${authenticationHeaders.access_token_header}`] = authenticationTokens.access_token
-	headers[`${authenticationHeaders.refresh_token_header}`] = authenticationTokens.refresh_token
 	try {
 		const fetchResponse = await goFetch(Domain.Entities.Url.ApiUrlPaths.Iam.Session, {
-			headers
+			credentials: 'include'
 		})
 
 		const fetchData = await fetchResponse.json()
@@ -112,10 +82,8 @@ export async function GetOpenidEndpoints(customFetch?: {
 	(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
 	(input: string | URL | globalThis.Request, init?: RequestInit): Promise<Response>
 }): Promise<Domain.Entities.Iam.OpenIDEndpoints> {
-	let goFetch = fetch
-	if (customFetch) {
-		goFetch = customFetch
-	}
+	let goFetch = customFetch ? customFetch : fetch
+
 	try {
 		const fetchResponse = await goFetch(Domain.Entities.Url.ApiUrlPaths.Iam.OpenIDEndpoints)
 

@@ -1,4 +1,4 @@
-import { Domain, MetadataModel } from '$lib'
+import { Domain } from '$lib'
 
 /**
  * Defines the interface for creating, updating, and deleting one metadata-model.
@@ -6,9 +6,19 @@ import { Domain, MetadataModel } from '$lib'
 export interface Datum {
 	previousDatum?: any
 
+	context: string
+
+	authcontextdirectorygroupid?: string
+
+	verboseresponse?: boolean
+
+	currentdirectorygroupid: string
+
 	directory_group_id?: string
 
 	metadata_models_id?: string
+	
+	fetch: Domain.Interfaces.Fetch
 
 	abstractionReviewQuorum: number
 	abstractionReviewQuorumValid?: () => boolean
@@ -25,36 +35,9 @@ export interface Datum {
 
 	reset?: () => void
 
-	create?: (
-		authFetch: Domain.Interfaces.AuthenticatedFetch,
-		directoryGroupID: string,
-		opts?: {
-			componentName?: string
-			telemetry?: Domain.Interfaces.ITelemetry
-			authContextDirectoryGroupID?: string
-			verboseResponse?: boolean
-		}
-	) => Promise<Domain.Entities.State.Toast>
-	update?: (
-		authFetch: Domain.Interfaces.AuthenticatedFetch,
-		directoryGroupID: string,
-		opts?: {
-			componentName?: string
-			telemetry?: Domain.Interfaces.ITelemetry
-			authContextDirectoryGroupID?: string
-			verboseResponse?: boolean
-		}
-	) => Promise<Domain.Entities.State.Toast>
-	delete?: (
-		authFetch: Domain.Interfaces.AuthenticatedFetch,
-		directoryGroupID: string,
-		opts?: {
-			componentName?: string
-			telemetry?: Domain.Interfaces.ITelemetry
-			authContextDirectoryGroupID?: string
-			verboseResponse?: boolean
-		}
-	) => Promise<Domain.Entities.State.Toast>
+	create?: () => Promise<Domain.Entities.State.Toast>
+	update?: () => Promise<Domain.Entities.State.Toast>
+	delete?: () => Promise<Domain.Entities.State.Toast>
 
 	telemetry?: Domain.Interfaces.ITelemetry
 }

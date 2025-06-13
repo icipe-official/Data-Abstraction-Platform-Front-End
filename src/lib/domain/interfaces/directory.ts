@@ -1,53 +1,36 @@
-import type { Domain } from "$lib"
+import type { Domain } from '$lib'
 
 /**
  * Defines the interface for creating, updating, and deleting one directory-group.
  */
 export interface Datum {
-    previousDatum?: any
+	previousDatum?: any
 
-    id?: string
+	fetch: Domain.Interfaces.Fetch
 
-    displayName: string
-    displayNameValid?: () => boolean
-    displayNameError?: string[]
-    updateName: (value: any) => void
+	context: string
 
-    data: any
-    dataMetadataModel?: any
+	authcontextdirectorygroupid?: string
 
-    reset?: () => void
+	verboseresponse?: boolean
 
-    create?: (
-        authFetch: Domain.Interfaces.AuthenticatedFetch,
-        directoryGroupID: string,
-        opts?: {
-            componentName?: string
-            telemetry?: Domain.Interfaces.ITelemetry
-            authContextDirectoryGroupID?: string
-            verboseResponse?: boolean
-        }
-    ) => Promise<Domain.Entities.State.Toast>
-    update?: (
-        authFetch: Domain.Interfaces.AuthenticatedFetch,
-        directoryGroupID: string,
-        opts?: {
-            componentName?: string
-            telemetry?: Domain.Interfaces.ITelemetry
-            authContextDirectoryGroupID?: string
-            verboseResponse?: boolean
-        }
-    ) => Promise<Domain.Entities.State.Toast>
-    delete?: (
-        authFetch: Domain.Interfaces.AuthenticatedFetch,
-        directoryGroupID: string,
-        opts?: {
-            componentName?: string
-            telemetry?: Domain.Interfaces.ITelemetry
-            authContextDirectoryGroupID?: string
-            verboseResponse?: boolean
-        }
-    ) => Promise<Domain.Entities.State.Toast>
+	currentdirectorygroupid: string
 
-    telemetry?: Domain.Interfaces.ITelemetry
+	id?: string
+
+	displayName: string
+	displayNameValid?: () => boolean
+	displayNameError?: string[]
+	updateName: (value: any) => void
+
+	data: any
+	dataMetadataModel?: any
+
+	reset?: () => void
+
+	create?: () => Promise<Domain.Entities.State.Toast>
+	update?: () => Promise<Domain.Entities.State.Toast>
+	delete?: () => Promise<Domain.Entities.State.Toast>
+
+	telemetry?: Domain.Interfaces.ITelemetry
 }

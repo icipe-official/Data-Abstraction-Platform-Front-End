@@ -1,5 +1,5 @@
 export * as Iam from './iam'
-export * as Static from './static'  
+export * as Static from './static'
 export * as Url from './url'
 export * as StorageFiles from './storage_files'
 export * as StorageFilesAuthorizationIDs from './storage_files_authorization_ids'
@@ -30,3 +30,4 @@ export * as MetadataModel from './metadata_model'
 export * as Telemetry from './telemetry'
 export * as Theme from './theme'
 export * as Toast from './toast'
+

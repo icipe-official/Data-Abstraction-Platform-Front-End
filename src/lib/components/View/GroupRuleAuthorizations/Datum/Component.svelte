@@ -39,8 +39,6 @@
 
 	let dataStringified: any = $derived(JSON.stringify(data))
 
-	
-
 	function getDatumFieldData(tableCollectionName: string, fieldColumnName: string, joinDepth: number = 0) {
 		let fieldGroup: any = getFieldGroupByFieldColumnName(tableCollectionName, fieldColumnName, joinDepth)
 
@@ -60,6 +58,23 @@
 		if (updateview) {
 			updateview(view)
 		}
+	}
+
+	function getFieldGroupByFieldColumnName(tableCollectionName: string, fieldColumnName: string, joinDepth: number = 0) {
+		let fieldGroup: any
+
+		MetadataModel.ForEachFieldGroup(JSON.parse(groupStringified), (property: any) => {
+			if (
+				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === joinDepth &&
+				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === tableCollectionName &&
+				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === fieldColumnName
+			) {
+				fieldGroup = JSON.parse(JSON.stringify(property))
+				return true
+			}
+		})
+
+		return fieldGroup
 	}
 </script>
 
@@ -90,7 +105,7 @@
 					}}
 				></HeaderDatum>
 			{/await}
-			<div class="divider mb-0 mt-0"></div>
+			<div class="divider mt-0 mb-0"></div>
 		{/if}
 
 		<main class="flex flex-col gap-y-4 overflow-auto">

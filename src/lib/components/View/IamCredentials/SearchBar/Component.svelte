@@ -32,11 +32,7 @@
 	let viewQueryCondition = $derived(JSON.parse(JSON.stringify(querycondition)))
 
 	let iamCredentialsQCKey = $derived(
-		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(
-			metadatamodel,
-			Domain.Entities.IamCredentials.RepositoryName,
-			joindepth
-		)
+		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(metadatamodel, Domain.Entities.IamCredentials.RepositoryName, joindepth)
 	)
 	let iamCredentialsFullTextSearchQuery: string = $derived.by(() => {
 		if (iamCredentialsQCKey) {
@@ -96,8 +92,6 @@
 			}
 		}
 	}
-
-	
 
 	let showFilterPanel: boolean = $state(false)
 

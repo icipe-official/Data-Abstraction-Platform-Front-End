@@ -1,7 +1,11 @@
-import { State, Utils, Domain, MetadataModel } from '$lib'
+import { State, Utils, Domain, MetadataModel, Interfaces } from '$lib'
 
 export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch {
 	let d: Domain.Interfaces.MetadataModels.ViewSearch = {
+		search: new Interfaces.MetadataModels.SearchData(
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.DirectoryGroups}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.DirectoryGroups}${Domain.Entities.Url.MetadataModelSearchPath}`
+		),
 		context: 'View Search',
 		queryconditions: [],
 		quicksearchquerycondition: {},
@@ -10,7 +14,7 @@ export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch {
 		filterexcludeindexes: [],
 		showquerypanel: false,
 		selectedindexes: [],
-        view: 'list',
+		view: 'list',
 		updatemedataModel(value) {
 			this.searchmetadatamodel = value
 			if (this.search) {
@@ -28,7 +32,7 @@ export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch {
 					Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(this.queryconditions!, [this.quicksearchquerycondition!]),
 					this.authcontextdirectorygroupid || undefined,
 					this.authcontextdirectorygroupid || undefined,
-					undefined,
+					1,
 					false,
 					false,
 					undefined
@@ -68,7 +72,7 @@ export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch {
 
 			if (Object.keys(this.search.searchmetadatamodel).length === 0) {
 				try {
-					await this.search.FetchMetadataModel(this.authcontextdirectorygroupid, undefined, undefined)
+					await this.search.FetchMetadataModel(this.authcontextdirectorygroupid, 1, undefined)
 				} catch (e) {
 					const DEFAULT_ERROR = `Get ${Domain.Entities.AbstractionsDirectoryGroups.RepositoryName} metadata-model failed`
 
@@ -82,20 +86,17 @@ export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch {
 				}
 			}
 
-			this.search.searchmetadatamodel = MetadataModel.MapFieldGroups(
-				this.search.searchmetadatamodel,
-				(property: any) => {
-					if (
-						property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-						property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.AbstractionsDirectoryGroups.RepositoryName &&
-						property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.AbstractionsDirectoryGroups.FieldColumn.LastUpdatedOn
-					) {
-						property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-					}
-
-					return property
+			this.search.searchmetadatamodel = MetadataModel.MapFieldGroups(this.search.searchmetadatamodel, (property: any) => {
+				if (
+					property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
+					property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.AbstractionsDirectoryGroups.RepositoryName &&
+					property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.AbstractionsDirectoryGroups.FieldColumn.LastUpdatedOn
+				) {
+					property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
 				}
-			)
+
+				return property
+			})
 
 			this.search.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 50
 

@@ -6,8 +6,6 @@ interface data {
 	directory_group_id?: string
 	current_directory_group?: Domain.Entities.MetadataModel.IDatum
 	theme?: Domain.Entities.Theme.Theme
-	tokens?: Domain.Entities.Iam.AccessRefreshToken
-	authentication_headers?: Domain.Entities.Iam.AuthenticationHeaders
 }
 
 export const load: PageServerLoad = async ({ url, locals, fetch }) => {
@@ -17,16 +15,6 @@ export const load: PageServerLoad = async ({ url, locals, fetch }) => {
 		data.theme = locals.Theme
 	}
 
-	if (locals.AuthenticationHeaders) {
-		data.authentication_headers = locals.AuthenticationHeaders
-	}
-
-	if (locals.AuthenticationTokens) {
-		data.tokens = locals.AuthenticationTokens
-	} else {
-		error(401, 'Unauthorized')
-	}
-
 	if (url.searchParams.get(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID)) {
 		data.directory_group_id = url.searchParams.get(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID)!
 	}
@@ -34,13 +22,13 @@ export const load: PageServerLoad = async ({ url, locals, fetch }) => {
 	let directoryGroupSearch: Domain.Interfaces.MetadataModels.Search
 
 	const directoryGroupID = url.searchParams.get(Domain.Entities.Url.SearchParams.DIRECTORY_GROUP_ID)
-	if (directoryGroupID && data.tokens && data.authentication_headers) {
+	if (directoryGroupID) {
 		const authContextDirectoryGroupID = url.searchParams.get(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID)
 		try {
 			directoryGroupSearch = new Interfaces.MetadataModels.SearchData(
 				`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
 				`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchPath}`,
-				new Interfaces.AuthenticatedFetch.Server(data.tokens, data.authentication_headers, fetch)
+				fetch
 			)
 
 			await directoryGroupSearch.FetchMetadataModel(authContextDirectoryGroupID || undefined, 1, undefined)

@@ -24,7 +24,7 @@ export function SetValueInObject(object: any, path: string, valueToSet: any): an
 	if (typeof path !== 'string' || path.length === 0 || path === '$') {
 		if (typeof valueToSet === 'object') {
 			try {
-			return structuredClone(valueToSet)
+				return structuredClone(valueToSet)
 			} catch {
 				return valueToSet
 			}

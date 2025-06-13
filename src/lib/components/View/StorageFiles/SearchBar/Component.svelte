@@ -32,11 +32,7 @@
 	let viewQueryCondition = $derived(JSON.parse(JSON.stringify(querycondition)))
 
 	let storageFilesQCKey = $derived(
-		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(
-			metadatamodel,
-			Domain.Entities.StorageFiles.RepositoryName,
-			joindepth
-		)
+		Utils.MetadataModel.GetGroupQueryPropertiesByDatabaseProperties(metadatamodel, Domain.Entities.StorageFiles.RepositoryName, joindepth)
 	)
 	let storageFilesFullTextSearchQuery: string = $derived.by(() => {
 		if (storageFilesQCKey) {
@@ -96,8 +92,6 @@
 			}
 		}
 	}
-
-	
 
 	let showFilterPanel: boolean = $state(false)
 

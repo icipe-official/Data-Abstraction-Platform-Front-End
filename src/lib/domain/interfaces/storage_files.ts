@@ -1,43 +1,35 @@
-import type { Domain } from "$lib"
+import type { Domain } from '$lib'
 
 /**
  * Defines the interface for creating, updating, and deleting one metadata-model.
  */
 export interface Datum {
-    previousDatum?: any
+	previousDatum?: any
 
-    id?: string
+	fetch: Domain.Interfaces.Fetch
 
-    tags: string[]
-    updateTags: (index: number, value: any) => void
-    deleteTags: (index: number) => void
+	context: string
 
-    viewAuthorized: boolean
-    viewUnauthorized: boolean
-    editAuthorized: boolean
-    editUnauthorized: boolean
-    reset?: () => void
+	authcontextdirectorygroupid?: string
 
-    update?: (
-        authFetch: Domain.Interfaces.AuthenticatedFetch,
-        directoryGroupID: string,
-        opts?: {
-            componentName?: string
-            telemetry?: Domain.Interfaces.ITelemetry
-            authContextDirectoryGroupID?: string
-            verboseResponse?: boolean
-        }
-    ) => Promise<Domain.Entities.State.Toast>
-    delete?: (
-        authFetch: Domain.Interfaces.AuthenticatedFetch,
-        directoryGroupID: string,
-        opts?: {
-            componentName?: string
-            telemetry?: Domain.Interfaces.ITelemetry
-            authContextDirectoryGroupID?: string
-            verboseResponse?: boolean
-        }
-    ) => Promise<Domain.Entities.State.Toast>
+	verboseresponse?: boolean
 
-    telemetry?: Domain.Interfaces.ITelemetry
+	currentdirectorygroupid: string
+
+	id?: string
+
+	tags: string[]
+	updateTags: (index: number, value: any) => void
+	deleteTags: (index: number) => void
+
+	viewAuthorized: boolean
+	viewUnauthorized: boolean
+	editAuthorized: boolean
+	editUnauthorized: boolean
+	reset?: () => void
+
+	update?: () => Promise<Domain.Entities.State.Toast>
+	delete?: () => Promise<Domain.Entities.State.Toast>
+
+	telemetry?: Domain.Interfaces.ITelemetry
 }

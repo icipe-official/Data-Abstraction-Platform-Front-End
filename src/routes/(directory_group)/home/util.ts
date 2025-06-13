@@ -1,5 +1,5 @@
 export enum Tab {
-    INFO = 'info',
-    PARTICIPANTS = 'participants',
-    ROLES = 'roles'
+	INFO = 'info',
+	PARTICIPANTS = 'participants',
+	ROLES = 'roles'
 }

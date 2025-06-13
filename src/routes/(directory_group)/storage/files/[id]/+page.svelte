@@ -13,36 +13,28 @@
 		return getContext(State.TelemetryContext.value)
 	})
 
-	onMount(() => {
-		if (data.tokens?.access_token && data.tokens?.refresh_token) {
-			State.Session.tokens = {
-				access_token: data.tokens.access_token,
-				refresh_token: data.tokens.refresh_token
-			}
-		} else {
-			State.Session.tokens = undefined
-		}
-
-		if (data.authentication_headers) {
-			State.AuthenticationHeaders.value = data.authentication_headers
-		} else {
-			State.AuthenticationHeaders.value = undefined
-		}
-	})
-
-	let verboseResponse = $derived(State.VerboseResponse.value)
 	let authContextDirectoryGroupID = $derived(data.directory_group_id)
 
-	const datum: Domain.Interfaces.StorageFiles.Datum = $state(Interfaces.StorageFiles.Datum(data.current_datum))
-	$effect(() => {
+	//@ts-expect-error
+	let datum: Domain.Interfaces.StorageFiles.Datum = $state({})
+
+	onMount(() => {
+		datum = Interfaces.StorageFiles.Datum({
+			authContextDirectoryGroupID: data.directory_group_id,
+			fetchedData: {
+				metadata_model: JSON.parse(JSON.stringify(data.current_datum?.metadata_model)),
+				datum: JSON.parse(JSON.stringify(data.current_datum?.datum))
+			},
+			telemetry,
+			currentDirectoryGroupID: data.directory_group_id!,
+			context: COMPONENT_NAME,
+			verboseResponse: State.VerboseResponse.value
+		})
+
 		if (data.current_datum?.datum) {
-			untrack(() => {
-				datum.previousDatum = JSON.parse(JSON.stringify(data.current_datum!.datum))
-			})
+			datum.previousDatum = JSON.parse(JSON.stringify(data.current_datum.datum))
 		}
 	})
-
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
 
 	let windowWidth: number = $state(0)
 
@@ -70,7 +62,7 @@
 
 	let datumView: Component.View.View = $state('simple')
 
-	let noOfTags: number = $derived(datum.tags.length)
+	let noOfTags: number = $derived(datum.tags?.length)
 
 	let tagsStart: number = $state(0)
 
@@ -99,7 +91,7 @@
 			</header>
 		{/if}
 
-		<main class="flex flex-[9.5] flex-col overflow-hidden pl-2 pr-2">
+		<main class="flex flex-[9.5] flex-col overflow-hidden pr-2 pl-2">
 			{#if currentTab === Tab.FILE_INFORMATION}
 				<section class="flex flex-1 flex-col gap-y-4 overflow-hidden">
 					{#if modelInformationTab === ModelInformationTab.EDIT}
@@ -348,7 +340,7 @@
 						</main>
 					{/if}
 
-					{#if State.Session.session && State.Session.tokens && data.directory_group_id}
+					{#if State.Session.session && data.directory_group_id}
 						<footer class="join w-full pb-2">
 							{#if (datum.id && datum.update) || datum.delete}
 								{#if modelInformationTab === ModelInformationTab.VIEW}
@@ -383,12 +375,7 @@
 											State.Loading.value = `Updating ${Domain.Entities.MetadataModels.RepositoryName}`
 
 											try {
-												const toastData = await datum.update!(authedFetch, data.directory_group_id!, {
-													componentName: COMPONENT_NAME,
-													telemetry,
-													authContextDirectoryGroupID,
-													verboseResponse
-												})
+												const toastData = await datum.update!()
 
 												State.Toast.Type = toastData.Type
 												State.Toast.Message = toastData.Message
@@ -474,12 +461,7 @@
 			onclick={async () => {
 				State.Loading.value = `Deleting ${Domain.Entities.MetadataModels.RepositoryName}`
 				try {
-					const toastData = await datum.delete!(authedFetch, data.directory_group_id!, {
-						componentName: COMPONENT_NAME,
-						telemetry,
-						authContextDirectoryGroupID,
-						verboseResponse
-					})
+					const toastData = await datum.delete!()
 
 					State.Toast.Type = toastData.Type
 					State.Toast.Message = toastData.Message

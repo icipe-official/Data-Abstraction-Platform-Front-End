@@ -202,7 +202,7 @@ Props:
 			</legend>
 
 			<code
-				class="overflow-auto text-wrap break-words rounded-md border p-1 {theme === Domain.Entities.Theme.Theme.DARK
+				class="overflow-auto rounded-md border p-1 text-wrap break-words {theme === Domain.Entities.Theme.Theme.DARK
 					? 'bg-gray-800'
 					: 'bg-gray-200'} {themecolor === Domain.Entities.Theme.Color.PRIMARY
 					? 'border-primary'
@@ -360,6 +360,6 @@ Props:
 			{/if}
 		</fieldset>
 	</main>
-	
+
 	{@render FooterSnippet(themecolor, theme, updatefieldgroup, fieldgroup)}
 </div>

@@ -1166,7 +1166,7 @@ Prop:
 													: 'bg-accent text-accent-content'}"
 										></div>
 										<div
-											class="divider mb-0 mt-0 {themecolor === Domain.Entities.Theme.Color.PRIMARY
+											class="divider mt-0 mb-0 {themecolor === Domain.Entities.Theme.Color.PRIMARY
 												? 'divider-primary'
 												: themecolor === Domain.Entities.Theme.Color.SECONDARY
 													? 'divider-secondary'
@@ -1203,7 +1203,7 @@ Prop:
 
 					{#if orIndex !== orFilterConditions.length - 1}
 						<div
-							class="divider mb-0 mt-0 {themecolor === Domain.Entities.Theme.Color.PRIMARY
+							class="divider mt-0 mb-0 {themecolor === Domain.Entities.Theme.Color.PRIMARY
 								? 'divider-primary'
 								: themecolor === Domain.Entities.Theme.Color.SECONDARY
 									? 'divider-secondary'
@@ -1363,7 +1363,7 @@ Prop:
 {/snippet}
 
 {#snippet propertyKey(propertyName: string, hint?: string)}
-	<div class="sticky left-0 top-0 z-[2] h-full w-full {theme === Domain.Entities.Theme.Theme.DARK ? 'bg-gray-600' : 'bg-gray-300'}">
+	<div class="sticky top-0 left-0 z-[2] h-full w-full {theme === Domain.Entities.Theme.Theme.DARK ? 'bg-gray-600' : 'bg-gray-300'}">
 		<div class="flex justify-between self-center italic">
 			<span class="text-wrap break-words">{propertyName}</span>
 

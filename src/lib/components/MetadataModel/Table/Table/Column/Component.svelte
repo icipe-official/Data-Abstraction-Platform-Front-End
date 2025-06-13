@@ -269,7 +269,7 @@ Props:
 							</div>
 
 							{#if eIndex !== eIndex}
-								<div class="divider mb-0 mt-0"></div>
+								<div class="divider mt-0 mb-0"></div>
 							{/if}
 						{/each}
 					</main>

@@ -283,7 +283,7 @@
 								<!-- svelte-ignore a11y_interactive_supports_focus -->
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<div
-									class="btn btn-md btn-ghost min-h-fit flex-1 justify-start pb-1 pt-1"
+									class="btn btn-md btn-ghost min-h-fit flex-1 justify-start pt-1 pb-1"
 									role="button"
 									onclick={() => {
 										if (rowclick) {
@@ -347,7 +347,7 @@
 									/>
 								{/if}
 								{#if showviewfile}
-									<span class="w-fit h-fit self-center">
+									<span class="h-fit w-fit self-center">
 										{@render viewfile(rowIndex)}
 									</span>
 								{/if}
@@ -369,7 +369,7 @@
 								</main>
 							{/await}
 						{:else if rIndex !== rowsEnd}
-							<div class="divider mb-0 mt-0"></div>
+							<div class="divider mt-0 mb-0"></div>
 						{/if}
 					</section>
 				{/each}
@@ -609,15 +609,13 @@
 {/if}
 
 {#if showviewfile}
-	<dialog bind:this={viewFileDialogElement} id="selected-directory-group-dialog" class="modal mr-0 pr-0 max-w-full">
-		<div class="flex h-full w-full flex-1 flex-col min-w-full">
+	<dialog bind:this={viewFileDialogElement} id="selected-directory-group-dialog" class="modal mr-0 max-w-full pr-0">
+		<div class="flex h-full w-full min-w-full flex-1 flex-col">
 			{#if typeof viewFileIndex === 'number'}
 				{@const file: Domain.Entities.StorageFiles.Interface = data[viewFileIndex]}
 
-				<header class="sticky left-0 right-0 top-0 flex items-center justify-between p-2 w-full">
-					<div
-						class="flex h-fit w-fit gap-x-1 text-white text-lg"
-					>
+				<header class="sticky top-0 right-0 left-0 flex w-full items-center justify-between p-2">
+					<div class="flex h-fit w-fit gap-x-1 text-lg text-white">
 						{Array.isArray(file.original_name) && file.original_name.length > 0 ? file.original_name[0] : 'View File'}
 					</div>
 					<button
@@ -636,7 +634,7 @@
 					</button>
 				</header>
 
-				<main class="flex flex-[9.5] overflow-hidden w-full h-full p-2">
+				<main class="flex h-full w-full flex-[9.5] overflow-hidden p-2">
 					{#await import('$lib/components/FileView/Component.svelte') then { default: FileView }}
 						<FileView storagefile={file} {authcontextdirectorygroupid} {telemetry} {theme} {themecolor}></FileView>
 					{/await}
@@ -764,15 +762,15 @@
 
 		<div class="grid flex-1" style="grid-template-columns: auto auto 2fr;">
 			<span class="self-center text-right text-sm">File Original Name</span>
-			<div class="divider divider-horizontal ml-0 mr-0"></div>
+			<div class="divider divider-horizontal mr-0 ml-0"></div>
 			<span>{@render datumoriginalname(dIndex)}</span>
 
 			<span class="self-center text-right text-sm">Owner Name</span>
-			<div class="divider divider-horizontal ml-0 mr-0"></div>
+			<div class="divider divider-horizontal mr-0 ml-0"></div>
 			<span>{@render datumdirectorydisplayname(dIndex)}</span>
 
 			<span class="self-center text-right text-sm">Group Name</span>
-			<div class="divider divider-horizontal ml-0 mr-0"></div>
+			<div class="divider divider-horizontal mr-0 ml-0"></div>
 			<span>{@render datumgroupdisplayname(dIndex)}</span>
 		</div>
 	</div>

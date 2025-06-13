@@ -20,27 +20,10 @@ export const AuthenticationHeaders: { value?: Domain.Entities.Iam.Authentication
 
 export const OpenidEndpoints: { value?: Domain.Entities.Iam.OpenIDEndpoints } = $state({})
 
-export const Session: { session?: Domain.Entities.State.Session; tokens?: Domain.Entities.Iam.AccessRefreshToken } = $state({})
-
-export function UpdateSessionTokens(tokens: Domain.Entities.Iam.AccessRefreshToken) {
-	if (tokens.access_token || tokens.refresh_token) {
-		if (!Session.tokens) {
-			Session.tokens = {}
-		}
-
-		if (tokens.access_token) {
-			Session.tokens.access_token = tokens.access_token
-		}
-
-		if (tokens.refresh_token) {
-			Session.tokens.refresh_token = tokens.refresh_token
-		}
-	}
-}
+export const Session: { session?: Domain.Entities.State.Session } = $state({})
 
 export function ResetSession() {
 	Session.session = {}
-	Session.tokens = {}
 }
 
 export function GetGroupNavigationPath(path: string, directoryGroupID?: string) {

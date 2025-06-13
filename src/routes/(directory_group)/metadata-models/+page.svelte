@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Domain, State, Component, Interfaces, MetadataModel, Utils } from '$lib'
-	import { getContext, onMount } from 'svelte'
+	import { getContext, onMount, untrack } from 'svelte'
 	import type { PageProps } from './$types'
 	import { goto } from '$app/navigation'
 
@@ -14,145 +14,27 @@
 
 	let windowWidth: number = $state(0)
 
-	onMount(() => {
-		if (data.tokens?.access_token && data.tokens?.refresh_token) {
-			State.Session.tokens = {
-				access_token: data.tokens.access_token,
-				refresh_token: data.tokens.refresh_token
-			}
-		} else {
-			State.Session.tokens = undefined
-		}
-
-		if (data.authentication_headers) {
-			State.AuthenticationHeaders.value = data.authentication_headers
-		} else {
-			State.AuthenticationHeaders.value = undefined
-		}
-	})
-
 	let authContextDirectoryGroupID = $derived(data.directory_group_id)
 
-	let metadataModelsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let metadataModelsSearch = $state(Interfaces.MetadataModels.NewViewSearch())
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
+			untrack(() => {
+				metadataModelsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				metadataModelsSearch.context = COMPONENT_NAME
+				metadataModelsSearch.telemetry = telemetry
+			})
 		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.MetadataModels.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.MetadataModels.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
 	})
-	let metadataModelsQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let metadataModelsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let metadataModelsSearchMetadataModel: any = $state({})
-	let metadataModelsSearchResults: any[] = $state([])
-	let metadataModelsSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayMetadataModelsExec: boolean = false
-	async function getDisplayMetadataModels() {
-		if (!metadataModelsSearch) {
-			throw [401, 'Unauthorized']
-		}
 
-		if (Object.keys(metadataModelsSearch.searchmetadatamodel).length === 0) {
-			try {
-				await metadataModelsSearch.FetchMetadataModel(authContextDirectoryGroupID, 1, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.MetadataModels.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
-
-		metadataModelsSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 50
-
-		metadataModelsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(metadataModelsSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.MetadataModels.RepositoryName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.MetadataModels.FieldColumn.LastUpdatedOn
-			) {
-				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-			}
-
-			return property
-		})
-
-		metadataModelsSearchMetadataModel = metadataModelsSearch.searchmetadatamodel
-
-		try {
-			await searchMetadataModels()
-			getDisplayMetadataModelsExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateMetadataModelsMetadataModel(value: any) {
-		metadataModelsSearchMetadataModel = value
-		if (metadataModelsSearch) {
-			metadataModelsSearch.searchmetadatamodel = metadataModelsSearchMetadataModel
-		}
-	}
-	async function searchMetadataModels() {
-		if (!metadataModelsSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.MetadataModels.RepositoryName}...`
-		try {
-			await metadataModelsSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(metadataModelsQueryConditions, [metadataModelsQuickSearchQueryCondition]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				1,
-				false,
-				false,
-				undefined
-			)
-
-			metadataModelsSearchFilterExcludeIndexes = []
-			metadataModelsSearchResults = metadataModelsSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${metadataModelsSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.MetadataModels.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showMetadataModelsQueryPanel: boolean = $state(false)
-	let selectedMetadataModels: number[] = $state([])
 	let showSelectedActions: boolean = $state(false)
 
-	let dataView: Component.View.View = $state('list')
-
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
-
 	async function deleteDeactivatesSelectedMetadataModels() {
-		const sdata = selectedMetadataModels.map((dIndex) => metadataModelsSearchResults[dIndex])
+		const sdata = metadataModelsSearch.selectedindexes!.map((dIndex) => metadataModelsSearch.searchresults![dIndex])
 
 		if (sdata.length === 0 || !data.directory_group_id) {
 			return
@@ -171,8 +53,9 @@
 
 			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.DEBUG, State.Loading.value, 'fetchUrl', fetchUrl, 'data', sdata)
 
-			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+			const fetchResponse = await fetch(fetchUrl, {
 				method: 'POST',
+				credentials: 'include',
 				body: JSON.stringify(sdata)
 			})
 
@@ -186,7 +69,7 @@
 				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
 				State.Toast.Message = toastData.message
 				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
-				selectedMetadataModels = []
+				metadataModelsSearch.selectedindexes! = []
 				showSelectedActions = false
 			} else {
 				handleError(fetchResponse.status, fetchData)
@@ -221,172 +104,189 @@
 		? 'bg-base-300'
 		: 'bg-white'} mb-1"
 >
-	{#await getDisplayMetadataModels()}
-		{@render awaitloading()}
-	{:then}
-		<header class="z-[2] flex justify-between gap-x-2">
-			{#await import('$lib/components/View/MetadataModels/SearchBar/Component.svelte') then { default: ViewMetadataModelsSearchBar }}
-				<div class="max-md:w-full md:w-[60%]">
-					<ViewMetadataModelsSearchBar
-						metadatamodel={metadataModelsSearchMetadataModel}
-						themecolor={State.ThemeColor.value}
-						theme={State.Theme.value}
-						{telemetry}
-						querycondition={metadataModelsQuickSearchQueryCondition}
-						updatequerycondition={(value) => {
-							metadataModelsQuickSearchQueryCondition = value
-						}}
-						showquerypanel={() => {
-							showMetadataModelsQueryPanel = !showMetadataModelsQueryPanel
-						}}
-						search={() => {
-							searchMetadataModels()
-						}}
-					></ViewMetadataModelsSearchBar>
-				</div>
-			{/await}
-
-			<a
-				class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
-					? 'btn-primary tooltip-primary'
-					: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
-						? 'btn-secondary tooltip-secondary'
-						: 'btn-accent tooltip-accent'}"
-				aria-label="Create New metadata model"
-				data-tip="Create new metadata model"
-				href={State.GetGroupNavigationPath(`${Domain.Entities.Url.WebsitePaths.MetadataModels}/new`, data.directory_group_id)}
-			>
-				<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
-				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
-				</svg>
-			</a>
-		</header>
-
-		<div class="divider mb-0 mt-0"></div>
-
-		<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-			{#if showMetadataModelsQueryPanel}
-				<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-					{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-						<QueryPanel
+	{#if metadataModelsSearch.getdisplaydata}
+		{#await metadataModelsSearch.getdisplaydata()}
+			{@render awaitloading()}
+		{:then}
+			<header class="z-[2] flex justify-between gap-x-2">
+				{#await import('$lib/components/View/MetadataModels/SearchBar/Component.svelte') then { default: ViewMetadataModelsSearchBar }}
+					<div class="max-md:w-full md:w-[60%]">
+						<ViewMetadataModelsSearchBar
+							metadatamodel={metadataModelsSearch.searchmetadatamodel}
 							themecolor={State.ThemeColor.value}
 							theme={State.Theme.value}
 							{telemetry}
-							metadatamodel={metadataModelsSearchMetadataModel}
-							data={metadataModelsSearchResults}
-							queryconditions={metadataModelsQueryConditions}
-							filterexcludeindexes={metadataModelsSearchFilterExcludeIndexes}
-							updatefilterexcludeindexes={(value) => {
-								metadataModelsSearchFilterExcludeIndexes = value
-								State.Toast.Type = Domain.Entities.Toast.Type.INFO
-								State.Toast.Message = `${metadataModelsSearchFilterExcludeIndexes.length} local results filtered out`
+							querycondition={metadataModelsSearch.quicksearchquerycondition}
+							updatequerycondition={(value) => {
+								metadataModelsSearch.quicksearchquerycondition = value
 							}}
-							updatemetadatamodel={updateMetadataModelsMetadataModel}
-							updatequeryconditions={(value) => {
-								metadataModelsQueryConditions = value
+							showquerypanel={() => {
+								metadataModelsSearch.showquerypanel = !metadataModelsSearch.showquerypanel
 							}}
-							hidequerypanel={() => (showMetadataModelsQueryPanel = false)}
-						></QueryPanel>
-					{/await}
-				</section>
-			{/if}
+							search={() => {
+								if (metadataModelsSearch.searchdata) {
+									metadataModelsSearch.searchdata()
+								}
+							}}
+						></ViewMetadataModelsSearchBar>
+					</div>
+				{/await}
 
-			{#if !showMetadataModelsQueryPanel || windowWidth > 1000}
-				<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-					{#if metadataModelsSearchResults.length > 0}
-						<section class="z-[2] flex w-full">
-							{#if selectedMetadataModels.length > 0}
-								<div class="flex flex-col p-2">
-									<button
-										class="btn btn-md {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
-											? 'btn-primary'
-											: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
-												? 'btn-secondary'
-												: 'btn-accent'} justify-start gap-x-1"
-										aria-label="Selected Rows Actions"
-										onclick={() => (showSelectedActions = !showSelectedActions)}
-									>
-										<!--mdi:menu source: https://icon-sets.iconify.design-->
-										<svg class="self-center" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-											<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
-										</svg>
-										<span class="self-center">{selectedMetadataModels.length} selected</span>
-									</button>
+				<a
+					class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+						? 'btn-primary tooltip-primary'
+						: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+							? 'btn-secondary tooltip-secondary'
+							: 'btn-accent tooltip-accent'}"
+					aria-label="Create New metadata model"
+					data-tip="Create new metadata model"
+					href={State.GetGroupNavigationPath(`${Domain.Entities.Url.WebsitePaths.MetadataModels}/new`, data.directory_group_id)}
+				>
+					<!--mdi:plus-thick source: https://icon-sets.iconify.design-->
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M20 14h-6v6h-4v-6H4v-4h6V4h4v6h6z" />
+					</svg>
+				</a>
+			</header>
 
-									{#if showSelectedActions}
-										<div class="relative w-full">
-											<div
-												class="absolute w-full {State.Theme.value === Domain.Entities.Theme.Theme.DARK
-													? 'bg-base-200'
-													: 'bg-white'} flex min-w-[250px] flex-col gap-2 rounded-lg p-2 shadow-md shadow-gray-800"
-											>
-												<button
-													class="btn btn-ghost btm-sm tooltip tooltip-right tooltip-primary justify-start"
-													onclick={deleteDeactivatesSelectedMetadataModels}
-													data-tip="Deactivating metadata model(s) may prevent them from being used in other parts of the platform."
+			<div class="divider mb-0 mt-0"></div>
+
+			<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+				{#if metadataModelsSearch.showquerypanel}
+					<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+						{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+							<QueryPanel
+								themecolor={State.ThemeColor.value}
+								theme={State.Theme.value}
+								{telemetry}
+								metadatamodel={metadataModelsSearch.searchmetadatamodel}
+								data={metadataModelsSearch.searchresults!}
+								queryconditions={metadataModelsSearch.queryconditions}
+								filterexcludeindexes={metadataModelsSearch.filterexcludeindexes}
+								updatefilterexcludeindexes={(value) => {
+									metadataModelsSearch.filterexcludeindexes = value
+									State.Toast.Type = Domain.Entities.Toast.Type.INFO
+									State.Toast.Message = `${metadataModelsSearch.filterexcludeindexes.length} local results filtered out`
+								}}
+								updatemetadatamodel={(value: any) => {
+									if (metadataModelsSearch.updatemedataModel) {
+										metadataModelsSearch.updatemedataModel(value)
+									}
+								}}
+								updatequeryconditions={(value) => {
+									metadataModelsSearch.queryconditions = value
+								}}
+								hidequerypanel={() => (metadataModelsSearch.showquerypanel = false)}
+							></QueryPanel>
+						{/await}
+					</section>
+				{/if}
+
+				{#if !metadataModelsSearch.showquerypanel || windowWidth > 1000}
+					<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+						{#if metadataModelsSearch.searchresults!.length > 0}
+							<section class="z-[2] flex w-full">
+								{#if metadataModelsSearch.selectedindexes!.length > 0}
+									<div class="flex flex-col p-2">
+										<button
+											class="btn btn-md {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+												? 'btn-primary'
+												: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+													? 'btn-secondary'
+													: 'btn-accent'} justify-start gap-x-1"
+											aria-label="Selected Rows Actions"
+											onclick={() => (showSelectedActions = !showSelectedActions)}
+										>
+											<!--mdi:menu source: https://icon-sets.iconify.design-->
+											<svg class="self-center" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+												<path fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
+											</svg>
+											<span class="self-center">{metadataModelsSearch.selectedindexes!.length} selected</span>
+										</button>
+
+										{#if showSelectedActions}
+											<div class="relative w-full">
+												<div
+													class="absolute w-full {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+														? 'bg-base-200'
+														: 'bg-white'} flex min-w-[250px] flex-col gap-2 rounded-lg p-2 shadow-md shadow-gray-800"
 												>
-													1 - Delete/Deactivate
-												</button>
+													<button
+														class="btn btn-ghost btm-sm tooltip tooltip-right tooltip-primary justify-start"
+														onclick={deleteDeactivatesSelectedMetadataModels}
+														data-tip="Deactivating metadata model(s) may prevent them from being used in other parts of the platform."
+													>
+														1 - Delete/Deactivate
+													</button>
+												</div>
 											</div>
-										</div>
-									{/if}
-								</div>
-							{/if}
+										{/if}
+									</div>
+								{/if}
 
-							{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-								<div class="h-fit w-full flex-1 self-center">
-									<ViewHeaderData
-										title={'Metadata Models'}
-										view={dataView}
+								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+									<div class="h-fit w-full flex-1 self-center">
+										<ViewHeaderData
+											title={'Metadata Models'}
+											view={metadataModelsSearch.view}
+											themecolor={State.ThemeColor.value}
+											theme={State.Theme.value}
+											updateview={(value) => (metadataModelsSearch.view = value)}
+										></ViewHeaderData>
+									</div>
+								{/await}
+							</section>
+
+							<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+								{#await import('$lib/components/View/MetadataModels/Data/Component.svelte') then { default: ViewMetadataModelsData }}
+									<ViewMetadataModelsData
+										metadatamodel={metadataModelsSearch.searchmetadatamodel}
+										data={metadataModelsSearch.searchresults!}
 										themecolor={State.ThemeColor.value}
 										theme={State.Theme.value}
-										updateview={(value) => (dataView = value)}
-									></ViewHeaderData>
-								</div>
-							{/await}
-						</section>
-
-						<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-							{#await import('$lib/components/View/MetadataModels/Data/Component.svelte') then { default: ViewMetadataModelsData }}
-								<ViewMetadataModelsData
-									metadatamodel={metadataModelsSearchMetadataModel}
-									data={metadataModelsSearchResults}
-									themecolor={State.ThemeColor.value}
-									theme={State.Theme.value}
-									{telemetry}
-									addselectcolumn={true}
-									view={dataView}
-									updatemetadatamodel={updateMetadataModelsMetadataModel}
-									filterexcludeindexes={metadataModelsSearchFilterExcludeIndexes}
-									selecteddataindexes={selectedMetadataModels}
-									updateselecteddataindexes={(value) => (selectedMetadataModels = value)}
-									rowclick={(value) => {
-										const metadataModel: Domain.Entities.MetadataModels.Interface = value
-										if (Array.isArray(metadataModel.id) && metadataModel.id.length > 0) {
-											goto(State.GetGroupNavigationPath(`${Domain.Entities.Url.WebsitePaths.MetadataModels}/${metadataModel.id[0]}`, data.directory_group_id))
-										}
-									}}
-								></ViewMetadataModelsData>
-							{/await}
-						</section>
-					{:else}
-						<div
-							class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
-								? 'bg-gray-700'
-								: 'bg-gray-200'}"
-						>
-							<span class="flex self-center text-lg">
-								Create, update, and delete information that forms the building blocks of incorporating unstructured data (JSON) within the platform.
-							</span>
-						</div>
-					{/if}
-				</section>
-			{/if}
-		</main>
-	{:catch e}
-		{@render awaiterror(e)}
-	{/await}
+										{telemetry}
+										addselectcolumn={true}
+										view={metadataModelsSearch.view}
+										updatemetadatamodel={(value: any) => {
+											if (metadataModelsSearch.updatemedataModel) {
+												metadataModelsSearch.updatemedataModel(value)
+											}
+										}}
+										filterexcludeindexes={metadataModelsSearch.filterexcludeindexes}
+										selecteddataindexes={metadataModelsSearch.selectedindexes!}
+										updateselecteddataindexes={(value) => (metadataModelsSearch.selectedindexes! = value)}
+										rowclick={(value) => {
+											const metadataModel: Domain.Entities.MetadataModels.Interface = value
+											if (Array.isArray(metadataModel.id) && metadataModel.id.length > 0) {
+												goto(
+													State.GetGroupNavigationPath(
+														`${Domain.Entities.Url.WebsitePaths.MetadataModels}/${metadataModel.id[0]}`,
+														data.directory_group_id
+													)
+												)
+											}
+										}}
+									></ViewMetadataModelsData>
+								{/await}
+							</section>
+						{:else}
+							<div
+								class="flex flex-1 justify-center rounded-md p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+									? 'bg-gray-700'
+									: 'bg-gray-200'}"
+							>
+								<span class="flex self-center text-lg">
+									Create, update, and delete information that forms the building blocks of incorporating unstructured data (JSON) within the platform.
+								</span>
+							</div>
+						{/if}
+					</section>
+				{/if}
+			</main>
+		{:catch e}
+			{@render awaiterror(e)}
+		{/await}
+	{/if}
 </div>
 
 {#snippet awaiterror(e: any)}

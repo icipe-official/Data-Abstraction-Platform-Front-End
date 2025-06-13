@@ -32,54 +32,16 @@
 
 	let directory: Domain.Entities.Directory.Interface | undefined = $derived(session?.directory)
 
-	let directoryGroupSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
-		if (!iamCredential) {
-			return undefined
-		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
-	})
-
+	let directoryGroupsSearch = $state(Interfaces.DirectoryGroups.NewViewSearch())
 	$effect(() => {
-		if (directoryGroupSearch) {
-			;(async () => {
-				try {
-					await directoryGroupSearch.FetchMetadataModel(directory?.directory_groups_id && directory?.directory_groups_id[0], 0, undefined)
-
-					if (directoryGroupSearch.searchmetadatamodel) {
-						directoryGroupSearch.searchmetadatamodel[`${MetadataModel.FgProperties.DATABASE_LIMIT}`] = 10
-						untrack(() => (directoryGroupSearchMetadataModel = directoryGroupSearch.searchmetadatamodel))
-					}
-
-					await directoryGroupSearch.Search(
-						undefined,
-						directory?.directory_groups_id && directory?.directory_groups_id[0],
-						directory?.directory_groups_id && directory?.directory_groups_id[0],
-						0,
-						true,
-						true,
-						undefined
-					)
-
-					if (directoryGroupSearch.searchresults.data) {
-						untrack(() => (directoryGroupSearchResults = directoryGroupSearch.searchresults.data!))
-					}
-				} catch (e) {
-					telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, 'Error searching directory-groups', 'error', e)
-				}
-			})()
+		if (iamCredential) {
+			untrack(() => {
+				directoryGroupsSearch.authcontextdirectorygroupid = directory?.directory_groups_id && directory?.directory_groups_id[0]
+				directoryGroupsSearch.context = COMPONENT_NAME
+				directoryGroupsSearch.telemetry = telemetry
+			})
 		}
 	})
-
-	let directoryGroupSearchMetadataModel: any = $state(undefined)
-
-	let directoryGroupSearchResults: any[] = $state([])
-
-	let directoryView: Component.View.View = $state('list')
 
 	async function handleClickDirectoryGroup(directoryGroup?: Domain.Entities.DirectoryGroups.Interface) {
 		if (!Array.isArray(directoryGroup?.id) || directoryGroup.id.length === 0) {
@@ -97,30 +59,39 @@
 		{title}
 	</header>
 
-	{#if iamCredential && directoryGroupSearchMetadataModel && directoryGroupSearchResults}
+	{#if iamCredential && directoryGroupsSearch.searchmetadatamodel && directoryGroupsSearch.searchresults}
 		{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-			<ViewHeaderData title="Pick a group to launch..." view={directoryView} updateview={(value) => (directoryView = value)} {theme}></ViewHeaderData>
+			<ViewHeaderData
+				title="Pick a group to launch..."
+				view={directoryGroupsSearch.view}
+				updateview={(value) => (directoryGroupsSearch.view = value)}
+				{theme}
+			></ViewHeaderData>
 		{/await}
 	{/if}
 
 	<main class="flex flex-col overflow-auto">
 		{#if iamCredential}
-			{#if directoryGroupSearchMetadataModel && directoryGroupSearchResults}
-				{#await import('$lib/components/View/DirectoryGroups/Data/Component.svelte') then { default: ViewDirectoryGroupData }}
-					<ViewDirectoryGroupData
-						metadatamodel={directoryGroupSearchMetadataModel}
-						data={directoryGroupSearchResults}
-						{theme}
-						{themecolor}
-						{telemetry}
-						rowclick={(value, index) => {
-							handleClickDirectoryGroup(value)
-						}}
-						view={directoryView}
-					></ViewDirectoryGroupData>
+			{#if directoryGroupsSearch.getdisplaydata}
+				{#await directoryGroupsSearch.getdisplaydata() then}
+					{#if directoryGroupsSearch.searchmetadatamodel && directoryGroupsSearch.searchresults}
+						{#await import('$lib/components/View/DirectoryGroups/Data/Component.svelte') then { default: ViewDirectoryGroupData }}
+							<ViewDirectoryGroupData
+								metadatamodel={directoryGroupsSearch.searchmetadatamodel}
+								data={directoryGroupsSearch.searchresults}
+								{theme}
+								{themecolor}
+								{telemetry}
+								rowclick={(value, index) => {
+									handleClickDirectoryGroup(value)
+								}}
+								view={directoryGroupsSearch.view}
+							></ViewDirectoryGroupData>
+						{/await}
+					{:else}
+						<span class="text-center text-sm">Groups you can navigate to will appear here once you have a role in one of them.</span>
+					{/if}
 				{/await}
-			{:else}
-				<span class="text-center text-sm">Groups you can navigate to will appear here once you have a role in one of them.</span>
 			{/if}
 		{:else}
 			<section class="join max-sm:join-vertical">

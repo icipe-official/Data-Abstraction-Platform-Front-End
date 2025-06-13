@@ -159,7 +159,10 @@ Props:
 <svelte:window bind:innerHeight={windowHeight} />
 
 <svelte:boundary onerror={(e) => telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, 'error', e)}>
-	<div class="grid min-h-fit min-w-fit {theme === Domain.Entities.Theme.Theme.DARK ? 'bg-gray-700' : 'bg-white'}" style="grid-template-columns: max-content 9fr;">
+	<div
+		class="grid min-h-fit min-w-fit {theme === Domain.Entities.Theme.Theme.DARK ? 'bg-gray-700' : 'bg-white'}"
+		style="grid-template-columns: max-content 9fr;"
+	>
 		{#if showCreateFieldGroup && typeof groupkey === 'string' && typeof createfieldgroup === 'function'}
 			{#await import('../Create/Component.svelte') then { default: Create }}
 				<section style="grid-column: 1/3;">
@@ -170,7 +173,7 @@ Props:
 
 		{#if fieldgroup && MetadataModel.IsGroupFieldContainsGroup(fieldgroup)}
 			<div
-				class="z-[3] pl-1 pr-1 pt-1 flex flex-col {theme === Domain.Entities.Theme.Theme.DARK ? 'bg-gray-700' : 'bg-white'}"
+				class="z-[3] flex flex-col pt-1 pr-1 pl-1 {theme === Domain.Entities.Theme.Theme.DARK ? 'bg-gray-700' : 'bg-white'}"
 				style="position: sticky; top: {stickyheaderoffset}px; bottom: {stickyfooteroffset}px;"
 			>
 				<button
@@ -520,7 +523,7 @@ Props:
 
 		{#if showgroupfields}
 			{#if viewFieldGroupJson}
-				<section class="flex h-fit w-full flex-1 overflow-hidden pb-1 pt-1" style="grid-column: 1/3;">
+				<section class="flex h-fit w-full flex-1 overflow-hidden pt-1 pb-1" style="grid-column: 1/3;">
 					<pre
 						class="h-fit max-h-[50vh] w-full flex-1 overflow-auto rounded-md {theme === Domain.Entities.Theme.Theme.DARK
 							? 'bg-gray-500'
@@ -551,7 +554,7 @@ Props:
 								)}
 
 								{#if fg}
-									<div class="pb-1 pt-1">
+									<div class="pt-1 pb-1">
 										{#await import('./Component.svelte') then { default: Self }}
 											<Self
 												themecolor={Utils.Theme.GetNextColorA(themecolor)}
@@ -597,7 +600,7 @@ Props:
 								{@const fg = fieldgroup[MetadataModel.FgProperties.GROUP_FIELDS][0][fgKey]}
 
 								{#if fg}
-									<div class="pb-1 pt-1">
+									<div class="pt-1 pb-1">
 										{#await import('./Component.svelte') then { default: Self }}
 											<Self
 												themecolor={Utils.Theme.GetNextColorA(themecolor)}

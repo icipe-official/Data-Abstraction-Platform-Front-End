@@ -4,7 +4,7 @@ import { sequence } from '@sveltejs/kit/hooks'
 
 const AUTHENTICATION_TOKEN_HEADERS_COOKIE_KEY = 'ath'
 
-export const handleSetAuthentication: Handle = async ({ event, resolve }) => {
+export const handleRefreshTokens: Handle = async ({ event, resolve }) => {
 	const athCookie = event.cookies.get(AUTHENTICATION_TOKEN_HEADERS_COOKIE_KEY)
 
 	let iamAuthenticationHeaders: Domain.Entities.Iam.AuthenticationHeaders | undefined
@@ -20,27 +20,18 @@ export const handleSetAuthentication: Handle = async ({ event, resolve }) => {
 			path: Utils.Env.BasePath
 		})
 	}
-	event.locals.AuthenticationHeaders = iamAuthenticationHeaders
 
 	if (iamAuthenticationHeaders && iamAuthenticationHeaders.access_token_header && iamAuthenticationHeaders.refresh_token_header) {
 		if (event.cookies.get(iamAuthenticationHeaders.refresh_token_header)) {
-			event.locals.AuthenticationTokens = {
-				refresh_token: event.cookies.get(iamAuthenticationHeaders.refresh_token_header)
-			}
-
-			if (event.cookies.get(iamAuthenticationHeaders.access_token_header)) {
-				event.locals.AuthenticationTokens.access_token = event.cookies.get(iamAuthenticationHeaders.access_token_header)
-			} else {
+			if (!event.cookies.get(iamAuthenticationHeaders.access_token_header)) {
 				try {
 					const newToken = await Utils.Iam.RefreshToken(
-						{ refresh_token: event.locals.AuthenticationTokens.refresh_token },
+						{ refresh_token: event.cookies.get(iamAuthenticationHeaders.refresh_token_header) },
 						iamAuthenticationHeaders,
 						fetch
 					)
 
 					if (newToken && newToken.access_token && newToken.access_token_expires_in && newToken.refresh_token && newToken.refresh_token_expires_in) {
-						event.locals.AuthenticationTokens.access_token = newToken.access_token
-						event.locals.AuthenticationTokens.access_token_expires_in = newToken.access_token_expires_in
 						event.cookies.set(iamAuthenticationHeaders.access_token_header, newToken.access_token, {
 							httpOnly: iamAuthenticationHeaders.cookie_http_only,
 							sameSite: true,
@@ -50,11 +41,9 @@ export const handleSetAuthentication: Handle = async ({ event, resolve }) => {
 							path: Utils.Env.BasePath,
 							encode(value) {
 								return value
-							},
+							}
 						})
-						
-						event.locals.AuthenticationTokens.refresh_token = newToken.refresh_token
-						event.locals.AuthenticationTokens.refresh_token_expires_in = newToken.refresh_token_expires_in
+
 						event.cookies.set(iamAuthenticationHeaders.refresh_token_header, newToken.refresh_token, {
 							httpOnly: iamAuthenticationHeaders.cookie_http_only,
 							sameSite: true,
@@ -64,7 +53,7 @@ export const handleSetAuthentication: Handle = async ({ event, resolve }) => {
 							path: Utils.Env.BasePath,
 							encode(value) {
 								return value
-							},
+							}
 						})
 					}
 				} catch {}
@@ -97,4 +86,4 @@ const handleSetTheme: Handle = async ({ event, resolve }) => {
 	})
 }
 
-export const handle: Handle = sequence(handleSetTheme, handleSetAuthentication)
+export const handle: Handle = sequence(handleSetTheme, handleRefreshTokens)

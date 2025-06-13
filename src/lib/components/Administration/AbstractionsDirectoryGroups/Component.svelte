@@ -28,11 +28,6 @@
 			State.Session.session.iam_credential.id.length > 0
 		) {
 			untrack(() => {
-				abstractionsDirectoryGroupsSearch.search = new Interfaces.MetadataModels.SearchData(
-					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.DirectoryGroups}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.DirectoryGroups}${Domain.Entities.Url.MetadataModelSearchPath}`,
-					new Interfaces.AuthenticatedFetch.Client(true)
-				)
 				abstractionsDirectoryGroupsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
 				abstractionsDirectoryGroupsSearch.context = COMPONENT_NAME
 				abstractionsDirectoryGroupsSearch.telemetry = telemetry
@@ -43,8 +38,6 @@
 	let windowWidth: number = $state(0)
 
 	let showSelectedActions: boolean = $state(false)
-
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
 
 	async function deleteDeactivateSelectedAbstractionsDirectoryGroups() {
 		if (!Array.isArray(abstractionsDirectoryGroupsSearch.selectedindexes) || !Array.isArray(abstractionsDirectoryGroupsSearch.searchresults)) {
@@ -70,8 +63,9 @@
 
 			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.DEBUG, State.Loading.value, 'fetchUrl', fetchUrl, 'data', data)
 
-			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+			const fetchResponse = await fetch(fetchUrl, {
 				method: 'POST',
+				credentials: 'include',
 				body: JSON.stringify(data)
 			})
 
@@ -177,7 +171,7 @@
 				</button>
 			</header>
 
-			<div class="divider mb-0 mt-0"></div>
+			<div class="divider mt-0 mb-0"></div>
 
 			<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
 				{#if abstractionsDirectoryGroupsSearch.showquerypanel}
@@ -307,9 +301,9 @@
 </div>
 
 <dialog bind:this={selectedAbstractionDirectoryGroupEntryDialogElement} id="selected-directory-group-dialog" class="modal">
-	<div class="modal-box flex max-h-[90vh] w-fit flex-col overflow-hidden rounded p-0 max-md:min-w-[90%] md:min-w-[700px] md:max-w-[800px]">
+	<div class="modal-box flex max-h-[90vh] w-fit flex-col overflow-hidden rounded p-0 max-md:min-w-[90%] md:max-w-[800px] md:min-w-[700px]">
 		{#if typeof selectedAbstractionDirectoryGroup === 'number'}
-			<header class="sticky left-0 right-0 top-0 mb-1 flex flex-[1] items-center justify-between p-2 shadow-sm shadow-gray-800">
+			<header class="sticky top-0 right-0 left-0 mb-1 flex flex-[1] items-center justify-between p-2 shadow-sm shadow-gray-800">
 				<div
 					class="flex h-fit w-fit gap-x-1 {themecolor === Domain.Entities.Theme.Color.PRIMARY
 						? 'text-primary'

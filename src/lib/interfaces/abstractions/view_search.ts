@@ -1,16 +1,11 @@
 import { State, Utils, Domain, MetadataModel, Interfaces } from '$lib'
 
-export function NewViewSearch(
-	authFetch: Domain.Interfaces.AuthenticatedFetch,
-	telemetry?: Domain.Interfaces.ITelemetry
-): Domain.Interfaces.MetadataModels.ViewSearch {
+export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch {
 	let d: Domain.Interfaces.MetadataModels.ViewSearch = {
 		search: new Interfaces.MetadataModels.SearchData(
 			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			authFetch
+			`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchPath}`
 		),
-		telemetry,
 		context: 'View Search',
 		queryconditions: [],
 		quicksearchquerycondition: {},
@@ -37,7 +32,7 @@ export function NewViewSearch(
 					Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(this.queryconditions!, [this.quicksearchquerycondition!]),
 					this.authcontextdirectorygroupid || undefined,
 					this.authcontextdirectorygroupid || undefined,
-					undefined,
+					2,
 					false,
 					false,
 					undefined
@@ -77,7 +72,7 @@ export function NewViewSearch(
 
 			if (Object.keys(this.search.searchmetadatamodel).length === 0) {
 				try {
-					await this.search.FetchMetadataModel(this.authcontextdirectorygroupid, undefined, undefined)
+					await this.search.FetchMetadataModel(this.authcontextdirectorygroupid, 2, undefined)
 				} catch (e) {
 					const DEFAULT_ERROR = `Get ${Domain.Entities.Abstractions.RepositoryName} metadata-model failed`
 

@@ -12,7 +12,7 @@ Props:
 -->
 <script lang="ts">
 	import { Component, Domain, MetadataModel, Utils } from '$lib'
-	
+
 	import Papa from 'papaparse'
 
 	const COMPONENT_NAME = 'metadata-model-edit-field-group-field-timestamp'

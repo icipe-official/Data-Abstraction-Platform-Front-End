@@ -919,14 +919,14 @@ Props:
 			<pre
 				class="grid h-fit w-full {theme === Domain.Entities.Theme.Theme.DARK
 					? 'bg-gray-500'
-					: 'bg-gray-700'} ml-1 mr-1 p-1 text-white shadow-inner shadow-gray-800"
+					: 'bg-gray-700'} mr-1 ml-1 p-1 text-white shadow-inner shadow-gray-800"
 				style="grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};"><code
 					>{JSON.stringify(getdata(groupKey, arrayindexplaceholders), null, 4)}</code
 				></pre>
 		{:else}
 			<header
 				style="top: {stickyheaderoffset + (root ? 0 : groupHeaderHeight)}px; grid-template-columns: subgrid; grid-column: span {gridTemplateColumns};"
-				class="sticky left-0 right-0 z-[2] grid h-fit min-w-fit shadow-sm shadow-gray-800 {theme === Domain.Entities.Theme.Theme.DARK
+				class="sticky right-0 left-0 z-[2] grid h-fit min-w-fit shadow-sm shadow-gray-800 {theme === Domain.Entities.Theme.Theme.DARK
 					? switchbackground
 						? 'border-gray-950 bg-gray-800'
 						: 'border-gray-900 bg-gray-700'

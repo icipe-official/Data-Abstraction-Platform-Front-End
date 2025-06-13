@@ -14,36 +14,28 @@
 		return getContext(State.TelemetryContext.value)
 	})
 
+	//@ts-expect-error
+	let datum: Domain.Interfaces.MetadataModels.Datum = $state({})
+
 	onMount(() => {
-		if (data.tokens?.access_token && data.tokens?.refresh_token) {
-			State.Session.tokens = {
-				access_token: data.tokens.access_token,
-				refresh_token: data.tokens.refresh_token
-			}
-		} else {
-			State.Session.tokens = undefined
-		}
+		datum = Interfaces.MetadataModels.Datum({
+			authContextDirectoryGroupID: data.directory_group_id,
+			fetchedData: {
+				metadata_model: JSON.parse(JSON.stringify(data.current_datum?.metadata_model)),
+				datum: JSON.parse(JSON.stringify(data.current_datum?.datum))
+			},
+			telemetry,
+			currentDirectoryGroupID: data.directory_group_id!,
+			context: COMPONENT_NAME,
+			verboseResponse: State.VerboseResponse.value
+		})
 
-		if (data.authentication_headers) {
-			State.AuthenticationHeaders.value = data.authentication_headers
-		} else {
-			State.AuthenticationHeaders.value = undefined
-		}
-	})
-
-	let verboseResponse = $derived(State.VerboseResponse.value)
-	let authContextDirectoryGroupID = $derived(data.directory_group_id)
-
-	const datum: Domain.Interfaces.MetadataModels.Datum = $state(Interfaces.MetadataModels.Datum(data.current_datum))
-	$effect(() => {
 		if (data.current_datum?.datum) {
-			untrack(() => {
-				datum.previousDatum = JSON.parse(JSON.stringify(data.current_datum!.datum))
-			})
+			datum.previousDatum = JSON.parse(JSON.stringify(data.current_datum.datum))
 		}
 	})
 
-	let noOfTags: number = $derived(datum.tags.length)
+	let noOfTags: number = $derived(datum.tags?.length)
 
 	let tagsStart: number = $state(0)
 
@@ -74,7 +66,7 @@
 
 	let viewTab: ViewTab = $state(ViewTab.DATUM_INPUT)
 
-	let sampleMetadataModel: any = $derived(JSON.parse(JSON.stringify(datum.data)))
+	let sampleMetadataModel: any = $derived(datum.data && JSON.parse(JSON.stringify(datum.data)))
 
 	let sampleDataCurrentIndex: number = $state(0)
 
@@ -107,8 +99,6 @@
 			State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
 		}
 	}
-
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
 
 	let datumView: Component.View.View = $state('simple')
 </script>
@@ -449,7 +439,7 @@
 							</main>
 						{/if}
 
-						{#if State.Session.session && State.Session.tokens && data.directory_group_id}
+						{#if State.Session.session && data.directory_group_id}
 							<footer class="join w-full pb-2">
 								{#if (datum.id && datum.update) || datum.delete}
 									{#if modelInformationTab === ModelInformationTab.VIEW}
@@ -485,12 +475,7 @@
 													State.Loading.value = `Updating ${Domain.Entities.MetadataModels.RepositoryName}`
 
 													try {
-														const toastData = await datum.update(authedFetch, data.directory_group_id!, {
-															componentName: COMPONENT_NAME,
-															telemetry,
-															authContextDirectoryGroupID,
-															verboseResponse
-														})
+														const toastData = await datum.update()
 
 														State.Toast.Type = toastData.Type
 														State.Toast.Message = toastData.Message
@@ -507,12 +492,7 @@
 														State.Loading.value = `Creating new ${Domain.Entities.MetadataModels.RepositoryName}`
 
 														try {
-															const toastData = await datum.create(authedFetch, data.directory_group_id!, {
-																componentName: COMPONENT_NAME,
-																telemetry,
-																authContextDirectoryGroupID,
-																verboseResponse
-															})
+															const toastData = await datum.create()
 
 															State.Toast.Type = toastData.Type
 															State.Toast.Message = toastData.Message
@@ -762,12 +742,7 @@
 			onclick={async () => {
 				State.Loading.value = `Deleting ${Domain.Entities.MetadataModels.RepositoryName}`
 				try {
-					const toastData = await datum.delete!(authedFetch, data.directory_group_id!, {
-						componentName: COMPONENT_NAME,
-						telemetry,
-						authContextDirectoryGroupID,
-						verboseResponse
-					})
+					const toastData = await datum.delete!()
 
 					State.Toast.Type = toastData.Type
 					State.Toast.Message = toastData.Message

@@ -261,7 +261,7 @@
 								<!-- svelte-ignore a11y_interactive_supports_focus -->
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<div
-									class="btn btn-md btn-ghost min-h-fit flex-1 justify-start pb-1 pt-1"
+									class="btn btn-md btn-ghost min-h-fit flex-1 justify-start pt-1 pb-1"
 									role="button"
 									onclick={() => {
 										if (rowclick) {
@@ -341,7 +341,7 @@
 								</main>
 							{/await}
 						{:else if rIndex !== rowsEnd}
-							<div class="divider mb-0 mt-0"></div>
+							<div class="divider mt-0 mb-0"></div>
 						{/if}
 					</section>
 				{/each}
@@ -642,11 +642,11 @@
 
 		<div class="grid flex-1" style="grid-template-columns: auto auto 2fr;">
 			<span class="self-center text-right text-sm">Model Name</span>
-			<div class="divider divider-horizontal ml-0 mr-0"></div>
+			<div class="divider divider-horizontal mr-0 ml-0"></div>
 			<span>{@render datummodelname(dIndex)}</span>
 
 			<span class="self-center text-right text-sm">Group Name</span>
-			<div class="divider divider-horizontal ml-0 mr-0"></div>
+			<div class="divider divider-horizontal mr-0 ml-0"></div>
 			<span>{@render datumgroupdisplayname(dIndex)}</span>
 		</div>
 	</div>

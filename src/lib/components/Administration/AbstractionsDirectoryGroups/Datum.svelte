@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte'
 	import { Tab } from './util'
 
-	const COMPONENT_NAME = 'administration-directory-datum'
+	const COMPONENT_NAME = 'administration-directory-groups-datum'
 
 	interface Props {
 		metadatamodel?: any
@@ -24,14 +24,17 @@
 	}: Props = $props()
 
 	let authContextDirectoryGroupID = $derived(directorygroupid)
-	let verboseResponse = $derived(State.VerboseResponse.value)
-
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
 
 	onMount(() => {
 		datum = Interfaces.AbstractionsDirectoryGroups.Datum({
-			metadata_model: JSON.parse(JSON.stringify(metadatamodel)),
-			datum: JSON.parse(JSON.stringify(d))
+			fetchedData: {
+				metadata_model: JSON.parse(JSON.stringify(metadatamodel)),
+				datum: JSON.parse(JSON.stringify(d))
+			},
+			verboseResponse: State.VerboseResponse.value,
+			currentDirectoryGroupID: directorygroupid!,
+			directoryGroupID: directorygroupid,
+			context: COMPONENT_NAME
 		})
 
 		if (d) {
@@ -72,8 +75,7 @@
 
 		return new Interfaces.MetadataModels.SearchData(
 			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
+			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchPath}`
 		)
 	})
 	let directoryGroupsQueryConditions: MetadataModel.QueryConditions[] = $state([])
@@ -188,8 +190,7 @@
 
 		return new Interfaces.MetadataModels.SearchData(
 			`${Domain.Entities.Url.ApiUrlPaths.MetadataModels.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.MetadataModels.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
+			`${Domain.Entities.Url.ApiUrlPaths.MetadataModels.Url}${Domain.Entities.Url.MetadataModelSearchPath}`
 		)
 	})
 	let metadataModelsQueryConditions: MetadataModel.QueryConditions[] = $state([])
@@ -446,7 +447,7 @@
 			</fieldset>
 		</main>
 
-		{#if State.Session.session && State.Session.tokens && directorygroupid}
+		{#if State.Session.session  && directorygroupid}
 			<footer class="join w-full pb-2">
 				{#if (datum.directory_group_id && datum.update) || datum.delete || datum.create}
 					<button
@@ -460,12 +461,7 @@
 								State.Loading.value = `Updating ${Domain.Entities.AbstractionsDirectoryGroups.RepositoryName}`
 
 								try {
-									const toastData = await datum.update(authedFetch, directorygroupid!, {
-										componentName: COMPONENT_NAME,
-										telemetry,
-										authContextDirectoryGroupID,
-										verboseResponse
-									})
+									const toastData = await datum.update()
 
 									State.Toast.Type = toastData.Type
 									State.Toast.Message = toastData.Message
@@ -482,12 +478,7 @@
 									State.Loading.value = `Creating new ${Domain.Entities.AbstractionsDirectoryGroups.RepositoryName}`
 
 									try {
-										const toastData = await datum.create(authedFetch, directorygroupid!, {
-											componentName: COMPONENT_NAME,
-											telemetry,
-											authContextDirectoryGroupID,
-											verboseResponse
-										})
+										const toastData = await datum.create()
 
 										State.Toast.Type = toastData.Type
 										State.Toast.Message = toastData.Message
@@ -728,12 +719,7 @@
 			onclick={async () => {
 				State.Loading.value = `Deleting ${Domain.Entities.AbstractionsDirectoryGroups.RepositoryName}`
 				try {
-					const toastData = await datum.delete!(authedFetch, directorygroupid!, {
-						componentName: COMPONENT_NAME,
-						telemetry,
-						authContextDirectoryGroupID,
-						verboseResponse
-					})
+					const toastData = await datum.delete!()
 
 					State.Toast.Type = toastData.Type
 					State.Toast.Message = toastData.Message

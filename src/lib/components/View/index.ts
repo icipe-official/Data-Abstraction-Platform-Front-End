@@ -12,6 +12,6 @@ export * as Header from './Header'
 export * as GroupAuthorizationRules from './GroupAuthorizationRules'
 export * as SwitchView from './SwitchView'
 export * as IamGroupAuthorizations from './IamGroupAuthorizations'
-export * as DirectoryGroups  from './DirectoryGroups'
+export * as DirectoryGroups from './DirectoryGroups'
 
 export type View = 'table' | 'list' | 'detailed' | 'simple'

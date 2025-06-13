@@ -13,27 +13,9 @@
 	})
 
 	let windowWidth: number = $state(0)
-
-	onMount(() => {
-		if (data.tokens?.access_token && data.tokens?.refresh_token) {
-			State.Session.tokens = {
-				access_token: data.tokens.access_token,
-				refresh_token: data.tokens.refresh_token
-			}
-		} else {
-			State.Session.tokens = undefined
-		}
-
-		if (data.authentication_headers) {
-			State.AuthenticationHeaders.value = data.authentication_headers
-		} else {
-			State.AuthenticationHeaders.value = undefined
-		}
-	})
-
 	let authContextDirectoryGroupID = $derived(data.directory_group_id)
 
-	let abstractionsSearch = $state(Interfaces.Abstractions.NewViewSearch(new Interfaces.AuthenticatedFetch.Client(true)))
+	let abstractionsSearch = $state(Interfaces.Abstractions.NewViewSearch())
 	$effect(() => {
 		if (
 			State.Session.session?.iam_credential &&
@@ -41,11 +23,6 @@
 			State.Session.session.iam_credential.id.length > 0
 		) {
 			untrack(() => {
-				abstractionsSearch.search = new Interfaces.MetadataModels.SearchData(
-					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-					`${Domain.Entities.Url.ApiUrlPaths.Abstractions.Url}${Domain.Entities.Url.MetadataModelSearchPath}`,
-					new Interfaces.AuthenticatedFetch.Client(true)
-				)
 				abstractionsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
 				abstractionsSearch.context = COMPONENT_NAME
 				abstractionsSearch.telemetry = telemetry
@@ -54,8 +31,6 @@
 	})
 
 	let showSelectedActions: boolean = $state(false)
-
-	let authedFetch = new Interfaces.AuthenticatedFetch.Client()
 
 	async function deleteDeactivatesSelectedAbstractions() {
 		if (!Array.isArray(abstractionsSearch.selectedindexes) || !Array.isArray(abstractionsSearch.searchresults)) {
@@ -81,8 +56,9 @@
 
 			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.DEBUG, State.Loading.value, 'fetchUrl', fetchUrl, 'data', sdata)
 
-			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+			const fetchResponse = await fetch(fetchUrl, {
 				method: 'POST',
+				credentials: 'include',
 				body: JSON.stringify(sdata)
 			})
 
@@ -125,363 +101,162 @@
 
 	let showCreateNewAbstractions: boolean = $state(false)
 
-	let iamGroupAuthorizationSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let iamGroupAuthorizationSearch = $state(Interfaces.IamGroupAuthorizations.NewViewSearch())
+	let directoryIDQCKey: Utils.MetadataModel.FieldGroupQueryProperties | undefined = $state(undefined)
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
-		}
+			untrack(() => {
+				iamGroupAuthorizationSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				iamGroupAuthorizationSearch.context = COMPONENT_NAME
+				iamGroupAuthorizationSearch.telemetry = telemetry
+				iamGroupAuthorizationSearch.viewContextIamCredentials = true
+				iamGroupAuthorizationSearch.addadditionalqueryconditions = [
+					(ctx) => {
+						let deactivatedOnQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							iamGroupAuthorizationSearch.searchmetadatamodel,
+							Domain.Entities.IamGroupAuthorizations.FieldColumn.DeactivatedOn,
+							Domain.Entities.IamGroupAuthorizations.RepositoryName,
+							0
+						)
 
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Iam.GroupAuthorizations}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Iam.GroupAuthorizations}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
-	})
-	let iamGroupAuthorizationQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let iamGroupAuthorizationQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let iamGroupAuthorizationFilterAbstractorRoleQueryCondition: MetadataModel.QueryConditions = $state({})
-	let iamGroupAuthorizationSearchMetadataModel: any = $state({})
-	let iamGroupAuthorizationSearchResults: any[] = $state([])
-	let iamGroupAuthorizationSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayIamGroupAuthorizationsExec: boolean = false
-	let directoryIDQCKey: Utils.MetadataModel.FieldGroupQueryProperties | undefined
-	async function getDisplayIamGroupAuthorizations() {
-		if (getDisplayIamGroupAuthorizationsExec) {
-			return
-		}
+						if (!deactivatedOnQCKey) {
+							throw [500, `Search does not contain user role information`]
+						}
 
-		if (!iamGroupAuthorizationSearch) {
-			throw [401, 'Unauthorized']
-		}
+						directoryIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.IamCredentials.FieldColumn.DirectoryID,
+							Domain.Entities.IamCredentials.RepositoryName,
+							1
+						)
 
-		if (Object.keys(iamGroupAuthorizationSearch.searchmetadatamodel).length === 0) {
-			try {
-				await iamGroupAuthorizationSearch.FetchMetadataModel(authContextDirectoryGroupID, 2, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.IamGroupAuthorizations.RepositoryName} metadata-model failed`
+						if (!directoryIDQCKey) {
+							throw [500, `Search does not contain directory information`]
+						}
 
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
+						const groupAuthRuleIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID,
+							Domain.Entities.GroupRuleAuthorizations.RepositoryName,
+							1
+						)
 
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
+						const groupAuthRuleGroupQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+							ctx.searchmetadatamodel,
+							Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup,
+							Domain.Entities.GroupRuleAuthorizations.RepositoryName,
+							1
+						)
 
-		iamGroupAuthorizationSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 20
+						if (!groupAuthRuleIDQCKey || !groupAuthRuleGroupQCKey) {
+							throw [500, `Search does not contain group roles information`]
+						}
 
-		iamGroupAuthorizationSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			(property: any) => {
-				if (
-					property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-					property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.IamGroupAuthorizations.RepositoryName
-				) {
-					if (
-						property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.IamGroupAuthorizations.FieldColumn.IamCredentialsID
-					) {
-						property[MetadataModel.FgProperties.DATABASE_DISTINCT] = true
+						const iamGroupAuthorizationFilterAbstractorRoleQueryCondition: MetadataModel.QueryConditions = {
+							[deactivatedOnQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_LESS_THAN,
+											[MetadataModel.FConditionProperties.VALUE]: 0
+										}
+									]
+								]
+							},
+							[directoryIDQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_GREATER_THAN,
+											[MetadataModel.FConditionProperties.VALUE]: 0
+										}
+									]
+								]
+							},
+							[groupAuthRuleGroupQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRuleGroup.ABSTRACTIONS
+											}
+										}
+									]
+								]
+							},
+							[groupAuthRuleIDQCKey.qcKey]: {
+								[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
+									groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
+								[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]:
+									groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
+								[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
+									[
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE
+											}
+										},
+										{
+											[MetadataModel.FConditionProperties.NEGATE]: false,
+											[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
+											[MetadataModel.FConditionProperties.VALUE]: {
+												[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
+												[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE_OTHERS
+											}
+										}
+									]
+								]
+							}
+						}
+
+						return iamGroupAuthorizationFilterAbstractorRoleQueryCondition
 					}
-				}
-
-				return property
-			}
-		)
-
-		iamGroupAuthorizationSearchMetadataModel = iamGroupAuthorizationSearch.searchmetadatamodel
-
-		let deactivatedOnQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			Domain.Entities.IamGroupAuthorizations.FieldColumn.DeactivatedOn,
-			Domain.Entities.IamGroupAuthorizations.RepositoryName,
-			0
-		)
-
-		if (!deactivatedOnQCKey) {
-			throw [500, `Search does not contain user role information`]
-		}
-
-		directoryIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			Domain.Entities.IamCredentials.FieldColumn.DirectoryID,
-			Domain.Entities.IamCredentials.RepositoryName,
-			1
-		)
-
-		if (!directoryIDQCKey) {
-			throw [500, `Search does not contain directory information`]
-		}
-
-		const groupAuthRuleIDQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleID,
-			Domain.Entities.GroupRuleAuthorizations.RepositoryName,
-			1
-		)
-
-		const groupAuthRuleGroupQCKey = Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
-			iamGroupAuthorizationSearch.searchmetadatamodel,
-			Domain.Entities.GroupRuleAuthorizations.FieldColumn.GroupAuthorizationRuleGroup,
-			Domain.Entities.GroupRuleAuthorizations.RepositoryName,
-			1
-		)
-
-		if (!groupAuthRuleIDQCKey || !groupAuthRuleGroupQCKey) {
-			throw [500, `Search does not contain group roles information`]
-		}
-
-		iamGroupAuthorizationFilterAbstractorRoleQueryCondition = {
-			[deactivatedOnQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: deactivatedOnQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_LESS_THAN,
-							[MetadataModel.FConditionProperties.VALUE]: 0
-						}
-					]
 				]
-			},
-			[directoryIDQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]: directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.NO_OF_ENTRIES_GREATER_THAN,
-							[MetadataModel.FConditionProperties.VALUE]: 0
-						}
-					]
-				]
-			},
-			[groupAuthRuleGroupQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
-					groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: groupAuthRuleGroupQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRuleGroup.ABSTRACTIONS
-							}
-						}
-					]
-				]
-			},
-			[groupAuthRuleIDQCKey.qcKey]: {
-				[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID]:
-					groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-				[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME]: groupAuthRuleIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
-				[MetadataModel.QcProperties.FG_FILTER_CONDITION]: [
-					[
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE
-							}
-						},
-						{
-							[MetadataModel.FConditionProperties.NEGATE]: false,
-							[MetadataModel.FConditionProperties.CONDITION]: MetadataModel.FilterCondition.EQUAL_TO,
-							[MetadataModel.FConditionProperties.VALUE]: {
-								[MetadataModel.FSelectProperties.TYPE]: MetadataModel.FieldType.TEXT,
-								[MetadataModel.FSelectProperties.VALUE]: Domain.Entities.Iam.AuthRule.UPDATE_OTHERS
-							}
-						}
-					]
-				]
-			}
+			})
 		}
-
-		try {
-			await searchIamGroupAuthorizations()
-			getDisplayIamGroupAuthorizationsExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateIamGroupAuthorizationsMetadataModel(value: any) {
-		iamGroupAuthorizationSearchMetadataModel = value
-		if (iamGroupAuthorizationSearch) {
-			iamGroupAuthorizationSearch.searchmetadatamodel = iamGroupAuthorizationSearchMetadataModel
-		}
-	}
-	async function searchIamGroupAuthorizations() {
-		if (!iamGroupAuthorizationSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.IamGroupAuthorizations.RepositoryName}...`
-
-		try {
-			await iamGroupAuthorizationSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(iamGroupAuthorizationQueryConditions, [
-					iamGroupAuthorizationQuickSearchQueryCondition,
-					iamGroupAuthorizationFilterAbstractorRoleQueryCondition
-				]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				2,
-				false,
-				false,
-				undefined
-			)
-
-			iamGroupAuthorizationSearchFilterExcludeIndexes = []
-			iamGroupAuthorizationSearchResults = iamGroupAuthorizationSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${iamGroupAuthorizationSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.IamGroupAuthorizations.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showIamGroupAuthorizationsQueryPanel: boolean = $state(false)
-	let selectedIamGroupAuthorizations: number[] = $state([])
+	})
 
 	let uploadFiles: boolean = $state(false)
 
 	let uploadedFiles: Domain.Entities.StorageFiles.Interface[] = $state([])
-	let storageFilesSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+
+	let storageFilesSearch = $state(Interfaces.StorageFiles.NewViewSearch())
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
+			untrack(() => {
+				storageFilesSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				storageFilesSearch.context = COMPONENT_NAME
+				storageFilesSearch.telemetry = telemetry
+			})
 		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Storage.Files}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Storage.Files}${Domain.Entities.Url.MetadataModelSearchPath}`,
-			new Interfaces.AuthenticatedFetch.Client(true)
-		)
 	})
-	let storageFilesQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let storageFilesQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let storageFilesSearchMetadataModel: any = $state({})
-	let storageFilesSearchResults: any[] = $state([])
-	let storageFilesSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayStorageFilesExec: boolean = false
-	async function getDisplayStorageFiles() {
-		if (getDisplayStorageFilesExec) {
-			return
-		}
-
-		if (!storageFilesSearch) {
-			throw [401, 'Unauthorized']
-		}
-
-		if (Object.keys(storageFilesSearch.searchmetadatamodel).length === 0) {
-			try {
-				await storageFilesSearch.FetchMetadataModel(authContextDirectoryGroupID, 2, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.StorageFiles.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
-
-		storageFilesSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(storageFilesSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.StorageFiles.RepositoryName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.StorageFiles.FieldColumn.LastUpdatedOn
-			) {
-				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-			}
-
-			return property
-		})
-
-		storageFilesSearchMetadataModel = storageFilesSearch.searchmetadatamodel
-
-		try {
-			await searchStorageFiles()
-			getDisplayStorageFilesExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateStorageFilesMetadataModel(value: any) {
-		storageFilesSearchMetadataModel = value
-		if (storageFilesSearch) {
-			storageFilesSearch.searchmetadatamodel = storageFilesSearchMetadataModel
-		}
-	}
-	async function searchStorageFiles() {
-		if (!storageFilesSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.StorageFiles.RepositoryName}...`
-		try {
-			await storageFilesSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(storageFilesQueryConditions, [storageFilesQuickSearchQueryCondition]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				2,
-				false,
-				false,
-				undefined
-			)
-
-			storageFilesSearchFilterExcludeIndexes = []
-			storageFilesSearchResults = storageFilesSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${storageFilesSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.StorageFiles.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showStorageFilesQueryPanel: boolean = $state(false)
-	let selectedStorageFiles: number[] = $state([])
 
 	let createAbstractionsStep: number = $state(0)
 
@@ -512,7 +287,7 @@
 	}
 
 	let createAbstractionsDataValid: boolean = $derived(
-		selectedIamGroupAuthorizations.length > 0 && (uploadedFiles.length > 0 || selectedStorageFiles.length > 0)
+		iamGroupAuthorizationSearch.selectedindexes!.length > 0 && (uploadedFiles.length > 0 || storageFilesSearch.selectedindexes!.length > 0)
 	)
 	async function handleCreateAbstractions() {
 		if (!createAbstractionsDataValid || !data.directory_group_id) {
@@ -521,12 +296,12 @@
 
 		let directory: Domain.Entities.IamGroupAuthorizations.Interface[] = []
 		if (directoryIDQCKey) {
-			for (const dIndex of selectedIamGroupAuthorizations) {
+			for (const dIndex of iamGroupAuthorizationSearch.selectedindexes!) {
 				const directoryID = MetadataModel.DatabaseGetColumnFieldValue(
-					JSON.parse(JSON.stringify(iamGroupAuthorizationSearchMetadataModel)),
+					JSON.parse(JSON.stringify(iamGroupAuthorizationSearch.searchmetadatamodel)),
 					directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME],
 					directoryIDQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID],
-					iamGroupAuthorizationSearchResults[dIndex]
+					iamGroupAuthorizationSearch.searchresults![dIndex]
 				)
 				if (Array.isArray(directoryID) && directoryID.length > 0) {
 					directory.push({
@@ -553,9 +328,9 @@
 			}
 			storageFiles = uploadedFiles
 		}
-		if (selectedStorageFiles.length > 0) {
-			for (const sfIndex of selectedStorageFiles) {
-				const sf: Domain.Entities.StorageFiles.Interface = storageFilesSearchResults[sfIndex]
+		if (storageFilesSearch.selectedindexes!.length > 0) {
+			for (const sfIndex of storageFilesSearch.selectedindexes!) {
+				const sf: Domain.Entities.StorageFiles.Interface = storageFilesSearch.searchresults![sfIndex]
 				if (Array.isArray(sf.id) && sf.id.length > 0) {
 					storageFiles.push({
 						id: sf.id
@@ -613,8 +388,9 @@
 				newAbstractions
 			)
 
-			const fetchResponse = await authedFetch.Fetch(fetchUrl, {
+			const fetchResponse = await fetch(fetchUrl, {
 				method: 'POST',
+				credentials: 'include',
 				body: JSON.stringify(newAbstractions)
 			})
 
@@ -628,8 +404,8 @@
 				const toastData = Domain.Entities.MetadataModel.GetToastFromJsonVerboseResponse(fetchData)
 				State.Toast.Message = toastData.message
 				State.Toast.MedataModelSearchResults = toastData.metadatamodel_search_results
-				selectedIamGroupAuthorizations = []
-				selectedStorageFiles = []
+				iamGroupAuthorizationSearch.selectedindexes! = []
+				storageFilesSearch.selectedindexes! = []
 				showSelectedActions = false
 			} else {
 				handleError(fetchResponse.status, fetchData)
@@ -744,246 +520,270 @@
 						: 'bg-gray-100'} rounded-lg p-2"
 				>
 					{#if createAbstractionsStep === 0}
-						{#await getDisplayIamGroupAuthorizations()}
-							{@render awaitloading()}
-						{:then}
-							<header class="z-[2] flex justify-center">
-								{#await import('$lib/components/View/IamGroupAuthorizations/SearchBar/Component.svelte') then { default: ViewIamGroupAuthorizationsSearchBar }}
-									<div class="max-md:w-full md:w-[60%]">
-										<ViewIamGroupAuthorizationsSearchBar
-											metadatamodel={iamGroupAuthorizationSearchMetadataModel}
-											themecolor={State.ThemeColor.value}
-											theme={State.Theme.value}
-											{telemetry}
-											querycondition={iamGroupAuthorizationQuickSearchQueryCondition}
-											updatequerycondition={(value) => {
-												iamGroupAuthorizationQuickSearchQueryCondition = value
-											}}
-											showquerypanel={() => {
-												showIamGroupAuthorizationsQueryPanel = !showIamGroupAuthorizationsQueryPanel
-											}}
-											search={() => {
-												searchIamGroupAuthorizations()
-											}}
-										></ViewIamGroupAuthorizationsSearchBar>
-									</div>
-								{/await}
-							</header>
-
-							<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-								{#if showIamGroupAuthorizationsQueryPanel}
-									<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-										{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-											<QueryPanel
-												themecolor={State.ThemeColor.value}
-												theme={State.Theme.value}
-												{telemetry}
-												metadatamodel={iamGroupAuthorizationSearchMetadataModel}
-												data={iamGroupAuthorizationSearchResults}
-												queryconditions={iamGroupAuthorizationQueryConditions}
-												filterexcludeindexes={iamGroupAuthorizationSearchFilterExcludeIndexes}
-												updatefilterexcludeindexes={(value) => {
-													iamGroupAuthorizationSearchFilterExcludeIndexes = value
-													State.Toast.Type = Domain.Entities.Toast.Type.INFO
-													State.Toast.Message = `${iamGroupAuthorizationSearchFilterExcludeIndexes.length} local results filtered out`
-												}}
-												updatemetadatamodel={updateIamGroupAuthorizationsMetadataModel}
-												updatequeryconditions={(value) => {
-													iamGroupAuthorizationQueryConditions = value
-												}}
-												hidequerypanel={() => (showIamGroupAuthorizationsQueryPanel = false)}
-											></QueryPanel>
-										{/await}
-									</section>
-								{/if}
-
-								{#if !showIamGroupAuthorizationsQueryPanel || windowWidth > 1000}
-									<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-										<section class="z-[2] flex w-full">
-											{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-												<div class="h-fit w-full flex-1 self-center">
-													<ViewHeaderData
-														title={'Abstractors'}
-														view={dataView}
-														themecolor={State.ThemeColor.value}
-														theme={State.Theme.value}
-														updateview={(value) => (dataView = value)}
-													></ViewHeaderData>
-												</div>
-											{/await}
-										</section>
-
-										<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-											{#await import('$lib/components/View/IamGroupAuthorizations/Data/Component.svelte') then { default: ViewIamGroupAuthorizationsData }}
-												<ViewIamGroupAuthorizationsData
-													metadatamodel={iamGroupAuthorizationSearchMetadataModel}
-													data={iamGroupAuthorizationSearchResults}
-													themecolor={State.ThemeColor.value}
-													theme={State.Theme.value}
-													{telemetry}
-													addclickcolumn={false}
-													addselectcolumn={true}
-													view={dataView}
-													updatemetadatamodel={updateIamGroupAuthorizationsMetadataModel}
-													filterexcludeindexes={iamGroupAuthorizationSearchFilterExcludeIndexes}
-													selecteddataindexes={selectedIamGroupAuthorizations}
-													updateselecteddataindexes={(value) => (selectedIamGroupAuthorizations = value)}
-													viewContext={'iam-credentials'}
-												></ViewIamGroupAuthorizationsData>
-											{/await}
-										</section>
-									</section>
-								{/if}
-							</main>
-						{:catch e}
-							{@render awaiterror(e)}
-						{/await}
-					{:else if createAbstractionsStep === 1}
-						{#await getDisplayStorageFiles()}
-							{@render awaitloading()}
-						{:then}
-							<header role="tablist" class="tabs tabs-border w-full">
-								<button role="tab" class="flex-1 tab{!uploadFiles ? ' tab-active' : ''}" onclick={() => (uploadFiles = false)}>
-									<div class="indicator">
-										{#if selectedStorageFiles.length > 0}
-											<span
-												class="indicator-item badge {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
-													? 'badge-primary'
-													: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
-														? 'badge-secondary'
-														: 'badge-accent'}"
-											>
-												{selectedStorageFiles.length}
-											</span>
-										{/if}
-										<div class="pr-4">Pick File(s)</div>
-									</div>
-								</button>
-								<button role="tab" class="flex-1 tab{uploadFiles ? ' tab-active' : ''}" onclick={() => (uploadFiles = true)}>
-									<div class="indicator">
-										{#if uploadedFiles.length > 0}
-											<span
-												class="indicator-item badge {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
-													? 'badge-primary'
-													: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
-														? 'badge-secondary'
-														: 'badge-accent'}"
-											>
-												{uploadedFiles.length}
-											</span>
-										{/if}
-										<div class="pr-4">Upload File(s)</div>
-									</div>
-								</button>
-							</header>
-
-							{#if uploadFiles}
-								<main class="flex w-full flex-1 self-center overflow-hidden p-2 md:max-w-[50%]">
-									{#await import('$lib/components/CreateStorageFiles/Component.svelte') then { default: CreateStorageFiles }}
-										<CreateStorageFiles
-											theme={State.Theme.value}
-											themecolor={State.ThemeColor.value}
-											directorygroupid={data.directory_group_id}
-											{telemetry}
-											onuploadedfiles={(value) => {
-												uploadedFiles = value
-											}}
-										></CreateStorageFiles>
-									{/await}
-								</main>
-							{:else}
+						{#if iamGroupAuthorizationSearch.getdisplaydata}
+							{#await iamGroupAuthorizationSearch.getdisplaydata()}
+								{@render awaitloading()}
+							{:then}
 								<header class="z-[2] flex justify-center">
-									{#await import('$lib/components/View/StorageFiles/SearchBar/Component.svelte') then { default: ViewStorageFilesSearchBar }}
+									{#await import('$lib/components/View/IamGroupAuthorizations/SearchBar/Component.svelte') then { default: ViewIamGroupAuthorizationsSearchBar }}
 										<div class="max-md:w-full md:w-[60%]">
-											<ViewStorageFilesSearchBar
-												metadatamodel={storageFilesSearchMetadataModel}
+											<ViewIamGroupAuthorizationsSearchBar
+												metadatamodel={iamGroupAuthorizationSearch.searchmetadatamodel}
 												themecolor={State.ThemeColor.value}
 												theme={State.Theme.value}
 												{telemetry}
-												querycondition={storageFilesQuickSearchQueryCondition}
+												querycondition={iamGroupAuthorizationSearch.quicksearchquerycondition}
 												updatequerycondition={(value) => {
-													storageFilesQuickSearchQueryCondition = value
+													iamGroupAuthorizationSearch.quicksearchquerycondition = value
 												}}
 												showquerypanel={() => {
-													showStorageFilesQueryPanel = !showStorageFilesQueryPanel
+													iamGroupAuthorizationSearch.showquerypanel = !iamGroupAuthorizationSearch.showquerypanel
 												}}
 												search={() => {
-													searchStorageFiles()
+													if (iamGroupAuthorizationSearch.searchdata) {
+														iamGroupAuthorizationSearch.searchdata()
+													}
 												}}
-											></ViewStorageFilesSearchBar>
+											></ViewIamGroupAuthorizationsSearchBar>
 										</div>
 									{/await}
 								</header>
 
 								<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-									{#if showStorageFilesQueryPanel}
+									{#if iamGroupAuthorizationSearch.showquerypanel}
 										<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
 											{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
 												<QueryPanel
 													themecolor={State.ThemeColor.value}
 													theme={State.Theme.value}
 													{telemetry}
-													metadatamodel={storageFilesSearchMetadataModel}
-													data={storageFilesSearchResults}
-													queryconditions={storageFilesQueryConditions}
-													filterexcludeindexes={storageFilesSearchFilterExcludeIndexes}
+													metadatamodel={iamGroupAuthorizationSearch.searchmetadatamodel}
+													data={iamGroupAuthorizationSearch.searchresults!}
+													queryconditions={iamGroupAuthorizationSearch.queryconditions}
+													filterexcludeindexes={iamGroupAuthorizationSearch.filterexcludeindexes}
 													updatefilterexcludeindexes={(value) => {
-														storageFilesSearchFilterExcludeIndexes = value
+														iamGroupAuthorizationSearch.filterexcludeindexes = value
 														State.Toast.Type = Domain.Entities.Toast.Type.INFO
-														State.Toast.Message = `${storageFilesSearchFilterExcludeIndexes.length} local results filtered out`
+														State.Toast.Message = `${iamGroupAuthorizationSearch.filterexcludeindexes.length} local results filtered out`
 													}}
-													updatemetadatamodel={updateStorageFilesMetadataModel}
+													updatemetadatamodel={(value: any) => {
+															if (iamGroupAuthorizationSearch.updatemedataModel) {
+																iamGroupAuthorizationSearch.updatemedataModel(value)
+															}
+														}}
 													updatequeryconditions={(value) => {
-														storageFilesQueryConditions = value
+														iamGroupAuthorizationSearch.queryconditions = value
 													}}
-													hidequerypanel={() => (showStorageFilesQueryPanel = false)}
+													hidequerypanel={() => (iamGroupAuthorizationSearch.showquerypanel = false)}
 												></QueryPanel>
 											{/await}
 										</section>
 									{/if}
 
-									{#if !showStorageFilesQueryPanel || windowWidth > 1000}
+									{#if !iamGroupAuthorizationSearch.showquerypanel || windowWidth > 1000}
 										<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
 											<section class="z-[2] flex w-full">
 												{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
 													<div class="h-fit w-full flex-1 self-center">
 														<ViewHeaderData
-															title={'Files'}
-															view={dataView}
+															title={'Abstractors'}
+															view={iamGroupAuthorizationSearch.view}
 															themecolor={State.ThemeColor.value}
 															theme={State.Theme.value}
-															updateview={(value) => (dataView = value)}
+															updateview={(value) => (iamGroupAuthorizationSearch.view = value)}
 														></ViewHeaderData>
 													</div>
 												{/await}
 											</section>
 
 											<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-												{#await import('$lib/components/View/StorageFiles/Data/Component.svelte') then { default: ViewStorageFilesData }}
-													<ViewStorageFilesData
-														metadatamodel={storageFilesSearchMetadataModel}
-														data={storageFilesSearchResults}
+												{#await import('$lib/components/View/IamGroupAuthorizations/Data/Component.svelte') then { default: ViewIamGroupAuthorizationsData }}
+													<ViewIamGroupAuthorizationsData
+														metadatamodel={iamGroupAuthorizationSearch.searchmetadatamodel}
+														data={iamGroupAuthorizationSearch.searchresults!}
 														themecolor={State.ThemeColor.value}
 														theme={State.Theme.value}
 														{telemetry}
 														addclickcolumn={false}
 														addselectcolumn={true}
-														view={dataView}
-														updatemetadatamodel={updateStorageFilesMetadataModel}
-														filterexcludeindexes={storageFilesSearchFilterExcludeIndexes}
-														selecteddataindexes={selectedStorageFiles}
-														updateselecteddataindexes={(value) => (selectedStorageFiles = value)}
-														showviewfile={true}
-													></ViewStorageFilesData>
+														view={iamGroupAuthorizationSearch.view}
+														updatemetadatamodel={(value: any) => {
+															if (iamGroupAuthorizationSearch.updatemedataModel) {
+																iamGroupAuthorizationSearch.updatemedataModel(value)
+															}
+														}}
+														filterexcludeindexes={iamGroupAuthorizationSearch.filterexcludeindexes}
+														selecteddataindexes={iamGroupAuthorizationSearch.selectedindexes!}
+														updateselecteddataindexes={(value) => (iamGroupAuthorizationSearch.selectedindexes! = value)}
+														viewContext={'iam-credentials'}
+													></ViewIamGroupAuthorizationsData>
 												{/await}
 											</section>
 										</section>
 									{/if}
 								</main>
-							{/if}
-						{:catch e}
-							{@render awaiterror(e)}
-						{/await}
+							{:catch e}
+								{@render awaiterror(e)}
+							{/await}
+						{/if}
+					{:else if createAbstractionsStep === 1}
+						{#if storageFilesSearch.getdisplaydata}
+							{#await storageFilesSearch.getdisplaydata()}
+								{@render awaitloading()}
+							{:then}
+								<header role="tablist" class="tabs tabs-border w-full">
+									<button role="tab" class="flex-1 tab{!uploadFiles ? ' tab-active' : ''}" onclick={() => (uploadFiles = false)}>
+										<div class="indicator">
+											{#if storageFilesSearch.selectedindexes!.length > 0}
+												<span
+													class="indicator-item badge {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+														? 'badge-primary'
+														: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+															? 'badge-secondary'
+															: 'badge-accent'}"
+												>
+													{storageFilesSearch.selectedindexes!.length}
+												</span>
+											{/if}
+											<div class="pr-4">Pick File(s)</div>
+										</div>
+									</button>
+									<button role="tab" class="flex-1 tab{uploadFiles ? ' tab-active' : ''}" onclick={() => (uploadFiles = true)}>
+										<div class="indicator">
+											{#if uploadedFiles.length > 0}
+												<span
+													class="indicator-item badge {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+														? 'badge-primary'
+														: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+															? 'badge-secondary'
+															: 'badge-accent'}"
+												>
+													{uploadedFiles.length}
+												</span>
+											{/if}
+											<div class="pr-4">Upload File(s)</div>
+										</div>
+									</button>
+								</header>
+
+								{#if uploadFiles}
+									<main class="flex w-full flex-1 self-center overflow-hidden p-2 md:max-w-[50%]">
+										{#await import('$lib/components/CreateStorageFiles/Component.svelte') then { default: CreateStorageFiles }}
+											<CreateStorageFiles
+												theme={State.Theme.value}
+												themecolor={State.ThemeColor.value}
+												directorygroupid={data.directory_group_id}
+												{telemetry}
+												onuploadedfiles={(value) => {
+													uploadedFiles = value
+												}}
+											></CreateStorageFiles>
+										{/await}
+									</main>
+								{:else}
+									<header class="z-[2] flex justify-center">
+										{#await import('$lib/components/View/StorageFiles/SearchBar/Component.svelte') then { default: ViewStorageFilesSearchBar }}
+											<div class="max-md:w-full md:w-[60%]">
+												<ViewStorageFilesSearchBar
+													metadatamodel={storageFilesSearch.searchmetadatamodel}
+													themecolor={State.ThemeColor.value}
+													theme={State.Theme.value}
+													{telemetry}
+													querycondition={storageFilesSearch.quicksearchquerycondition}
+													updatequerycondition={(value) => {
+														storageFilesSearch.quicksearchquerycondition = value
+													}}
+													showquerypanel={() => {
+														storageFilesSearch.showquerypanel = !storageFilesSearch.showquerypanel
+													}}
+													search={() => {
+														if (storageFilesSearch.searchdata) {
+															storageFilesSearch.searchdata()
+														}
+													}}
+												></ViewStorageFilesSearchBar>
+											</div>
+										{/await}
+									</header>
+
+									<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+										{#if storageFilesSearch.showquerypanel}
+											<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+												{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+													<QueryPanel
+														themecolor={State.ThemeColor.value}
+														theme={State.Theme.value}
+														{telemetry}
+														metadatamodel={storageFilesSearch.searchmetadatamodel}
+														data={storageFilesSearch.searchresults!}
+														queryconditions={storageFilesSearch.queryconditions}
+														filterexcludeindexes={storageFilesSearch.filterexcludeindexes}
+														updatefilterexcludeindexes={(value) => {
+															storageFilesSearch.filterexcludeindexes = value
+															State.Toast.Type = Domain.Entities.Toast.Type.INFO
+															State.Toast.Message = `${storageFilesSearch.filterexcludeindexes.length} local results filtered out`
+														}}
+														updatemetadatamodel={(value: any) => {
+															if (storageFilesSearch.updatemedataModel) {
+																storageFilesSearch.updatemedataModel(value)
+															}
+														}}
+														updatequeryconditions={(value) => {
+															storageFilesSearch.queryconditions = value
+														}}
+														hidequerypanel={() => (storageFilesSearch.showquerypanel = false)}
+													></QueryPanel>
+												{/await}
+											</section>
+										{/if}
+
+										{#if !storageFilesSearch.showquerypanel || windowWidth > 1000}
+											<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+												<section class="z-[2] flex w-full">
+													{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+														<div class="h-fit w-full flex-1 self-center">
+															<ViewHeaderData
+																title={'Files'}
+																view={storageFilesSearch.view}
+																themecolor={State.ThemeColor.value}
+																theme={State.Theme.value}
+																updateview={(value) => (storageFilesSearch.view = value)}
+															></ViewHeaderData>
+														</div>
+													{/await}
+												</section>
+
+												<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+													{#await import('$lib/components/View/StorageFiles/Data/Component.svelte') then { default: ViewStorageFilesData }}
+														<ViewStorageFilesData
+															metadatamodel={storageFilesSearch.searchmetadatamodel}
+															data={storageFilesSearch.searchresults!}
+															themecolor={State.ThemeColor.value}
+															theme={State.Theme.value}
+															{telemetry}
+															addclickcolumn={false}
+															addselectcolumn={true}
+															view={storageFilesSearch.view}
+															updatemetadatamodel={(value: any) => {
+																if (storageFilesSearch.updatemedataModel) {
+																	storageFilesSearch.updatemedataModel(value)
+																}
+															}}
+															filterexcludeindexes={storageFilesSearch.filterexcludeindexes}
+															selecteddataindexes={storageFilesSearch.selectedindexes!}
+															updateselecteddataindexes={(value) => (storageFilesSearch.selectedindexes! = value)}
+															showviewfile={true}
+														></ViewStorageFilesData>
+													{/await}
+												</section>
+											</section>
+										{/if}
+									</main>
+								{/if}
+							{:catch e}
+								{@render awaiterror(e)}
+							{/await}
+						{/if}
 					{:else if createAbstractionsStep === 2}
 						<div class="flex flex-1 justify-center">
 							<div class="flex h-fit w-fit flex-col gap-y-16 self-center justify-self-center md:max-w-[60%]">

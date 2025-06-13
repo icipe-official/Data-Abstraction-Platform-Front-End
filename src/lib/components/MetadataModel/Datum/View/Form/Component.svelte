@@ -324,7 +324,7 @@ Props:
 		{/if}
 
 		<footer
-			class="z-[2] flex justify-end gap-y-1 pb-2 pt-2 {theme === Domain.Entities.Theme.Theme.DARK
+			class="z-[2] flex justify-end gap-y-1 pt-2 pb-2 {theme === Domain.Entities.Theme.Theme.DARK
 				? switchbackground
 					? 'border-gray-950 bg-gray-800'
 					: 'border-gray-900 bg-gray-700'
