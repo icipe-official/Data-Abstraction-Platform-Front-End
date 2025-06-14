@@ -23,7 +23,7 @@ export const OpenidEndpoints: { value?: Domain.Entities.Iam.OpenIDEndpoints } = 
 export const Session: { session?: Domain.Entities.State.Session } = $state({})
 
 export function ResetSession() {
-	Session.session = {}
+	Session.session = undefined
 }
 
 export function GetGroupNavigationPath(path: string, directoryGroupID?: string) {

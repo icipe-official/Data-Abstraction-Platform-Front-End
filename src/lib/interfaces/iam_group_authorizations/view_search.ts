@@ -40,16 +40,7 @@ export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch & A
 			}
 
 			State.Loading.value = `Searching ${Domain.Entities.IamGroupAuthorizations.RepositoryName}...`
-			try {
-				console.log(
-					Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(this.queryconditions!, [
-						this.quicksearchquerycondition!,
-						this.directorygroupsquerycondition!,
-						this.directoryquerycondition!,
-						...this.additionalqueryconditions!
-					])
-				)
-				
+			try {				
 				await this.search.Search(
 					Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(this.queryconditions!, [
 						this.quicksearchquerycondition!,

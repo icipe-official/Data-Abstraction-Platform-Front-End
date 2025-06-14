@@ -149,6 +149,8 @@
 									directorySearch.searchdata()
 								}
 							}}
+							viewdatasearch={directorySearch.viewdatasearch}
+							updateviewdatasearch={(value) => (directorySearch.viewdatasearch = value)}
 						></ViewDirectorySearchBar>
 					</div>
 				{/await}
@@ -266,10 +268,10 @@
 									addselectcolumn={true}
 									view={directorySearch.view}
 									updatemetadatamodel={(value: any) => {
-									if (directorySearch.updatemedataModel) {
-										directorySearch.updatemedataModel(value)
-									}
-								}}
+										if (directorySearch.updatemedataModel) {
+											directorySearch.updatemedataModel(value)
+										}
+									}}
 									filterexcludeindexes={directorySearch.filterexcludeindexes}
 									selecteddataindexes={directorySearch.selectedindexes}
 									updateselecteddataindexes={(value) => (directorySearch.selectedindexes = value)}

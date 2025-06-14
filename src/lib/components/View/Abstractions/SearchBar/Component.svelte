@@ -14,6 +14,9 @@
 		search?: () => void
 		searchtitle?: string
 		joindepth?: number
+		authcontextdirectorygroupid?: string
+		viewdatasearch?: Domain.Interfaces.MetadataModels.ViewDataSearch
+		updateviewdatasearch?: (value: Domain.Interfaces.MetadataModels.ViewDataSearch) => void
 	}
 
 	let {
@@ -26,7 +29,10 @@
 		showquerypanel = undefined,
 		search = undefined,
 		searchtitle = 'Search by abstractions tags, or abstraction information...',
-		joindepth = 0
+		joindepth = 0,
+		authcontextdirectorygroupid = undefined,
+		viewdatasearch = {},
+		updateviewdatasearch = undefined
 	}: Props = $props()
 
 	let viewQueryCondition: MetadataModel.QueryConditions = $derived(JSON.parse(JSON.stringify(querycondition)))
@@ -243,6 +249,15 @@
 
 		onupdatequerycondition()
 	}
+
+	let dataQCKey = $derived(
+		Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			metadatamodel,
+			Domain.Entities.Abstractions.FieldColumn.Data,
+			Domain.Entities.Abstractions.RepositoryName,
+			joindepth
+		)
+	)
 </script>
 
 <svelte:window bind:innerWidth={windowWidth} />
@@ -481,6 +496,13 @@
 								}}
 							/>
 						</label>
+					{/if}
+
+					{#if dataQCKey}
+						{#await import('$lib/components/View/DataSearch/Component.svelte') then { default: DataSearch }}
+							<DataSearch {theme} {themecolor} {telemetry} {viewdatasearch} dataqckey={dataQCKey} {updateviewdatasearch} {authcontextdirectorygroupid}
+							></DataSearch>
+						{/await}
 					{/if}
 				</section>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Component, Domain, Interfaces, MetadataModel, State, Utils } from '$lib'
-	import { onMount } from 'svelte'
+	import { onMount, untrack } from 'svelte'
 	import { Tab } from './util'
 
 	const COMPONENT_NAME = 'administration-directory-groups-datum'
@@ -60,239 +60,37 @@
 		}
 	}
 
-	let dataView: Component.View.View = $state('list')
-
 	let currentTab: Tab = $state(Tab.DATUM)
 
-	let directoryGroupsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let directoryGroupsSearch = $state(Interfaces.DirectoryGroups.NewViewSearch())
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
+			untrack(() => {
+				directoryGroupsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				directoryGroupsSearch.context = COMPONENT_NAME
+				directoryGroupsSearch.telemetry = telemetry
+			})
 		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.Directory.Groups}${Domain.Entities.Url.MetadataModelSearchPath}`
-		)
 	})
-	let directoryGroupsQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let directoryGroupsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let directoryGroupsSearchMetadataModel: any = $state({})
-	let directoryGroupsSearchResults: any[] = $state([])
-	let directoryGroupsSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayDirectoryGroupsExec: boolean = false
-	async function getDisplayDirectoryGroups() {
-		if (getDisplayDirectoryGroupsExec) {
-			return
-		}
 
-		if (!directoryGroupsSearch) {
-			throw [401, 'Unauthorized']
-		}
-
-		if (Object.keys(directoryGroupsSearch.searchmetadatamodel).length === 0) {
-			try {
-				await directoryGroupsSearch.FetchMetadataModel(authContextDirectoryGroupID, undefined, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.DirectoryGroups.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
-
-		directoryGroupsSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 20
-
-		directoryGroupsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(directoryGroupsSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.DirectoryGroups.RepositoryName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.DirectoryGroups.FieldColumn.LastUpdatedOn
-			) {
-				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-			}
-
-			return property
-		})
-
-		directoryGroupsSearchMetadataModel = directoryGroupsSearch.searchmetadatamodel
-
-		try {
-			await searchDirectoryGroups()
-			getDisplayDirectoryGroupsExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateDirectoryGroupsMetadataModel(value: any) {
-		directoryGroupsSearchMetadataModel = value
-		if (directoryGroupsSearch) {
-			directoryGroupsSearch.searchmetadatamodel = directoryGroupsSearchMetadataModel
-		}
-	}
-	async function searchDirectoryGroups() {
-		if (!directoryGroupsSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.DirectoryGroups.RepositoryName}...`
-		try {
-			await directoryGroupsSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(directoryGroupsQueryConditions, [directoryGroupsQuickSearchQueryCondition]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				undefined,
-				false,
-				false,
-				undefined
-			)
-
-			directoryGroupsSearchFilterExcludeIndexes = []
-			directoryGroupsSearchResults = directoryGroupsSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${directoryGroupsSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.DirectoryGroups.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showDirectoryGroupsQueryPanel: boolean = $state(false)
-
-	let metadataModelsSearch: Domain.Interfaces.MetadataModels.Search | undefined = $derived.by(() => {
+	let metadataModelsSearch = $state(Interfaces.MetadataModels.NewViewSearch())
+	$effect(() => {
 		if (
-			!State.Session.session?.iam_credential ||
-			!Array.isArray(State.Session.session.iam_credential.id) ||
-			State.Session.session.iam_credential.id.length === 0
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
 		) {
-			return undefined
+			untrack(() => {
+				metadataModelsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				metadataModelsSearch.context = COMPONENT_NAME
+				metadataModelsSearch.telemetry = telemetry
+			})
 		}
-
-		return new Interfaces.MetadataModels.SearchData(
-			`${Domain.Entities.Url.ApiUrlPaths.MetadataModels.Url}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
-			`${Domain.Entities.Url.ApiUrlPaths.MetadataModels.Url}${Domain.Entities.Url.MetadataModelSearchPath}`
-		)
 	})
-	let metadataModelsQueryConditions: MetadataModel.QueryConditions[] = $state([])
-	let metadataModelsQuickSearchQueryCondition: MetadataModel.QueryConditions = $state({})
-	let metadataModelsSearchMetadataModel: any = $state({})
-	let metadataModelsSearchResults: any[] = $state([])
-	let metadataModelsSearchFilterExcludeIndexes: number[] = $state([])
-	let getDisplayMetadataModelsExec: boolean = false
-	async function getDisplayMetadataModels() {
-		if (getDisplayMetadataModelsExec) {
-			return
-		}
-
-		if (!metadataModelsSearch) {
-			throw [401, 'Unauthorized']
-		}
-
-		if (Object.keys(metadataModelsSearch.searchmetadatamodel).length === 0) {
-			try {
-				await metadataModelsSearch.FetchMetadataModel(authContextDirectoryGroupID, undefined, undefined)
-			} catch (e) {
-				const DEFAULT_ERROR = `Get ${Domain.Entities.MetadataModels.RepositoryName} metadata-model failed`
-
-				telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, DEFAULT_ERROR, 'error', e)
-
-				if (Array.isArray(e) && e.length === 2) {
-					throw e
-				} else {
-					throw [500, DEFAULT_ERROR]
-				}
-			}
-		}
-
-		metadataModelsSearch.searchmetadatamodel[MetadataModel.FgProperties.DATABASE_LIMIT] = 20
-
-		metadataModelsSearch.searchmetadatamodel = MetadataModel.MapFieldGroups(metadataModelsSearch.searchmetadatamodel, (property: any) => {
-			if (
-				property[MetadataModel.FgProperties.DATABASE_JOIN_DEPTH] === 0 &&
-				property[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_NAME] === Domain.Entities.MetadataModels.RepositoryName &&
-				property[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME] === Domain.Entities.MetadataModels.FieldColumn.LastUpdatedOn
-			) {
-				property[MetadataModel.FgProperties.DATABASE_SORT_BY_ASC] = false
-			}
-
-			return property
-		})
-
-		metadataModelsSearchMetadataModel = metadataModelsSearch.searchmetadatamodel
-
-		try {
-			await searchMetadataModels()
-			getDisplayMetadataModelsExec = true
-		} catch (e) {
-			throw e
-		}
-	}
-	function updateMetadataModelsMetadataModel(value: any) {
-		metadataModelsSearchMetadataModel = value
-		if (metadataModelsSearch) {
-			metadataModelsSearch.searchmetadatamodel = metadataModelsSearchMetadataModel
-		}
-	}
-	async function searchMetadataModels() {
-		if (!metadataModelsSearch) {
-			return
-		}
-
-		State.Loading.value = `Searching ${Domain.Entities.MetadataModels.RepositoryName}...`
-		try {
-			await metadataModelsSearch.Search(
-				Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(metadataModelsQueryConditions, [metadataModelsQuickSearchQueryCondition]),
-				authContextDirectoryGroupID || undefined,
-				authContextDirectoryGroupID || undefined,
-				undefined,
-				false,
-				false,
-				undefined
-			)
-
-			metadataModelsSearchFilterExcludeIndexes = []
-			metadataModelsSearchResults = metadataModelsSearch.searchresults.data || []
-
-			State.Toast.Type = Domain.Entities.Toast.Type.INFO
-			State.Toast.Message = `${metadataModelsSearchResults.length} results returned`
-		} catch (e) {
-			const ERROR = `Search ${Domain.Entities.MetadataModels.RepositoryName} failed`
-			telemetry?.Log(COMPONENT_NAME, true, Domain.Entities.Telemetry.LogLevel.ERROR, ERROR, 'error', e)
-
-			State.Toast.Type = Domain.Entities.Toast.Type.ERROR
-			State.Toast.Message = [ERROR]
-			if (Array.isArray(e) && e.length === 2) {
-				State.Toast.Message.push(`${e[0]}->${e[1].message}`)
-				throw e
-			} else {
-				State.Toast.Message.push(`${500}->${Utils.DEFAULT_FETCH_ERROR}`)
-				throw [500, ERROR]
-			}
-		} finally {
-			State.Loading.value = undefined
-		}
-	}
-	let showMetadataModelsQueryPanel: boolean = $state(false)
 </script>
 
 <svelte:window bind:innerWidth={windowWidth} />
@@ -447,7 +245,7 @@
 			</fieldset>
 		</main>
 
-		{#if State.Session.session  && directorygroupid}
+		{#if State.Session.session && directorygroupid}
 			<footer class="join w-full pb-2">
 				{#if (datum.directory_group_id && datum.update) || datum.delete || datum.create}
 					<button
@@ -522,189 +320,218 @@
 			</footer>
 		{/if}
 	{:else if currentTab === Tab.PICK_DIRECTORY_GROUP}
-		{#await getDisplayDirectoryGroups()}
-			{@render awaitloading()}
-		{:then}
-			<header class="z-[2] flex justify-center">
-				{#await import('$lib/components/View/DirectoryGroups/SearchBar/Component.svelte') then { default: ViewDirectoryGroupsSearchBar }}
-					<div class="w-full">
-						<ViewDirectoryGroupsSearchBar
-							metadatamodel={directoryGroupsSearchMetadataModel}
-							{themecolor}
-							{theme}
-							{telemetry}
-							querycondition={directoryGroupsQuickSearchQueryCondition}
-							updatequerycondition={(value) => {
-								directoryGroupsQuickSearchQueryCondition = value
-							}}
-							showquerypanel={() => {
-								showDirectoryGroupsQueryPanel = !showDirectoryGroupsQueryPanel
-							}}
-							search={() => {
-								searchDirectoryGroups()
-							}}
-						></ViewDirectoryGroupsSearchBar>
-					</div>
-				{/await}
-			</header>
-
-			<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-				{#if showDirectoryGroupsQueryPanel}
-					<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-						{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-							<QueryPanel
+		{#if directoryGroupsSearch.getdisplaydata}
+			{#await directoryGroupsSearch.getdisplaydata()}
+				{@render awaitloading()}
+			{:then}
+				<header class="z-[2] flex justify-center">
+					{#await import('$lib/components/View/DirectoryGroups/SearchBar/Component.svelte') then { default: ViewDirectoryGroupsSearchBar }}
+						<div class="w-full">
+							<ViewDirectoryGroupsSearchBar
+								metadatamodel={directoryGroupsSearch.searchmetadatamodel}
 								{themecolor}
 								{theme}
 								{telemetry}
-								metadatamodel={directoryGroupsSearchMetadataModel}
-								data={directoryGroupsSearchResults}
-								queryconditions={directoryGroupsQueryConditions}
-								filterexcludeindexes={directoryGroupsSearchFilterExcludeIndexes}
-								updatefilterexcludeindexes={(value) => {
-									directoryGroupsSearchFilterExcludeIndexes = value
-									State.Toast.Type = Domain.Entities.Toast.Type.INFO
-									State.Toast.Message = `${directoryGroupsSearchFilterExcludeIndexes.length} local results filtered out`
+								querycondition={directoryGroupsSearch.quicksearchquerycondition}
+								updatequerycondition={(value) => {
+									directoryGroupsSearch.quicksearchquerycondition = value
 								}}
-								updatemetadatamodel={updateDirectoryGroupsMetadataModel}
-								updatequeryconditions={(value) => {
-									directoryGroupsQueryConditions = value
+								showquerypanel={() => {
+									directoryGroupsSearch.showquerypanel = !directoryGroupsSearch.showquerypanel
 								}}
-								hidequerypanel={() => (showDirectoryGroupsQueryPanel = false)}
-							></QueryPanel>
-						{/await}
-					</section>
-				{/if}
+								search={() => {
+									if (directoryGroupsSearch.searchdata) {
+										directoryGroupsSearch.searchdata()
+									}
+								}}
+							></ViewDirectoryGroupsSearchBar>
+						</div>
+					{/await}
+				</header>
 
-				{#if !showDirectoryGroupsQueryPanel}
-					<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-						<section class="z-[2] flex w-full">
-							{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-								<div class="h-fit w-full flex-1 self-center">
-									<ViewHeaderData title={'Pick Group...'} view={dataView} {themecolor} {theme} updateview={(value) => (dataView = value)}
-									></ViewHeaderData>
-								</div>
-							{/await}
-						</section>
-
-						<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-							{#await import('$lib/components/View/DirectoryGroups/Data/Component.svelte') then { default: ViewDirectoryGroupsData }}
-								<ViewDirectoryGroupsData
-									metadatamodel={directoryGroupsSearchMetadataModel}
-									data={directoryGroupsSearchResults}
+				<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+					{#if directoryGroupsSearch.showquerypanel}
+						<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+							{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+								<QueryPanel
 									{themecolor}
 									{theme}
 									{telemetry}
-									view={dataView}
-									updatemetadatamodel={updateDirectoryGroupsMetadataModel}
-									filterexcludeindexes={directoryGroupsSearchFilterExcludeIndexes}
-									rowclick={(_, index) => {
-										const directoryGroups: Domain.Entities.DirectoryGroups.Interface = directoryGroupsSearchResults[index]
-										if (Array.isArray(directoryGroups.id) && directoryGroups.id.length > 0) {
-											datum.directory_group_id = directoryGroups.id[0]
-										}
-										currentTab = Tab.DATUM
+									metadatamodel={directoryGroupsSearch.searchmetadatamodel}
+									data={directoryGroupsSearch.searchresults}
+									queryconditions={directoryGroupsSearch.queryconditions}
+									filterexcludeindexes={directoryGroupsSearch.filterexcludeindexes}
+									updatefilterexcludeindexes={(value) => {
+										directoryGroupsSearch.filterexcludeindexes = value
+										State.Toast.Type = Domain.Entities.Toast.Type.INFO
+										State.Toast.Message = `${directoryGroupsSearch.filterexcludeindexes.length} local results filtered out`
 									}}
-								></ViewDirectoryGroupsData>
+									updatemetadatamodel={(value: any) => {
+										if (directoryGroupsSearch.updatemedataModel) {
+											directoryGroupsSearch.updatemedataModel(value)
+										}
+									}}
+									updatequeryconditions={(value) => {
+										directoryGroupsSearch.queryconditions = value
+									}}
+									hidequerypanel={() => (directoryGroupsSearch.showquerypanel = false)}
+								></QueryPanel>
 							{/await}
 						</section>
-					</section>
-				{/if}
-			</main>
-		{:catch e}
-			{@render awaiterror(e)}
-		{/await}
+					{/if}
+
+					{#if !directoryGroupsSearch.showquerypanel}
+						<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+							<section class="z-[2] flex w-full">
+								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+									<div class="h-fit w-full flex-1 self-center">
+										<ViewHeaderData
+											title={'Pick Group...'}
+											view={directoryGroupsSearch.view}
+											{themecolor}
+											{theme}
+											updateview={(value) => (directoryGroupsSearch.view = value)}
+										></ViewHeaderData>
+									</div>
+								{/await}
+							</section>
+
+							<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+								{#await import('$lib/components/View/DirectoryGroups/Data/Component.svelte') then { default: ViewDirectoryGroupsData }}
+									<ViewDirectoryGroupsData
+										metadatamodel={directoryGroupsSearch.searchmetadatamodel}
+										data={directoryGroupsSearch.searchresults}
+										{themecolor}
+										{theme}
+										{telemetry}
+										view={directoryGroupsSearch.view}
+										updatemetadatamodel={(value: any) => {
+											if (directoryGroupsSearch.updatemedataModel) {
+												directoryGroupsSearch.updatemedataModel(value)
+											}
+										}}
+										filterexcludeindexes={directoryGroupsSearch.filterexcludeindexes}
+										rowclick={(_, index) => {
+											const directoryGroups: Domain.Entities.DirectoryGroups.Interface = directoryGroupsSearch.searchresults![index]
+											if (Array.isArray(directoryGroups.id) && directoryGroups.id.length > 0) {
+												datum.directory_group_id = directoryGroups.id[0]
+											}
+											currentTab = Tab.DATUM
+										}}
+									></ViewDirectoryGroupsData>
+								{/await}
+							</section>
+						</section>
+					{/if}
+				</main>
+			{:catch e}
+				{@render awaiterror(e)}
+			{/await}
+		{/if}
 	{:else if currentTab === Tab.PICK_METADATA_MODEL}
-		{#await getDisplayMetadataModels()}
-			{@render awaitloading()}
-		{:then}
-			<header class="z-[2] flex justify-center">
-				{#await import('$lib/components/View/MetadataModels/SearchBar/Component.svelte') then { default: ViewMetadataModelsSearchBar }}
-					<div class="w-full">
-						<ViewMetadataModelsSearchBar
-							metadatamodel={metadataModelsSearchMetadataModel}
-							{themecolor}
-							{theme}
-							{telemetry}
-							querycondition={metadataModelsQuickSearchQueryCondition}
-							updatequerycondition={(value) => {
-								metadataModelsQuickSearchQueryCondition = value
-							}}
-							showquerypanel={() => {
-								showMetadataModelsQueryPanel = !showMetadataModelsQueryPanel
-							}}
-							search={() => {
-								searchMetadataModels()
-							}}
-						></ViewMetadataModelsSearchBar>
-					</div>
-				{/await}
-			</header>
-
-			<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
-				{#if showMetadataModelsQueryPanel}
-					<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
-						{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
-							<QueryPanel
+		{#if metadataModelsSearch.getdisplaydata}
+			{#await metadataModelsSearch.getdisplaydata()}
+				{@render awaitloading()}
+			{:then}
+				<header class="z-[2] flex justify-center">
+					{#await import('$lib/components/View/MetadataModels/SearchBar/Component.svelte') then { default: ViewMetadataModelsSearchBar }}
+						<div class="w-full">
+							<ViewMetadataModelsSearchBar
+								metadatamodel={metadataModelsSearch.searchmetadatamodel}
 								{themecolor}
 								{theme}
 								{telemetry}
-								metadatamodel={metadataModelsSearchMetadataModel}
-								data={metadataModelsSearchResults}
-								queryconditions={metadataModelsQueryConditions}
-								filterexcludeindexes={metadataModelsSearchFilterExcludeIndexes}
-								updatefilterexcludeindexes={(value) => {
-									metadataModelsSearchFilterExcludeIndexes = value
-									State.Toast.Type = Domain.Entities.Toast.Type.INFO
-									State.Toast.Message = `${metadataModelsSearchFilterExcludeIndexes.length} local results filtered out`
+								querycondition={metadataModelsSearch.quicksearchquerycondition}
+								updatequerycondition={(value) => {
+									metadataModelsSearch.quicksearchquerycondition = value
 								}}
-								updatemetadatamodel={updateMetadataModelsMetadataModel}
-								updatequeryconditions={(value) => {
-									metadataModelsQueryConditions = value
+								showquerypanel={() => {
+									metadataModelsSearch.showquerypanel = !metadataModelsSearch.showquerypanel
 								}}
-								hidequerypanel={() => (showMetadataModelsQueryPanel = false)}
-							></QueryPanel>
-						{/await}
-					</section>
-				{/if}
+								search={() => {
+									if (metadataModelsSearch.searchdata) {
+										metadataModelsSearch.searchdata()
+									}
+								}}
+							></ViewMetadataModelsSearchBar>
+						</div>
+					{/await}
+				</header>
 
-				{#if !showMetadataModelsQueryPanel}
-					<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
-						<section class="z-[2] flex w-full">
-							{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
-								<div class="h-fit w-full flex-1 self-center">
-									<ViewHeaderData title={'Pick Metadata Model...'} view={dataView} {themecolor} {theme} updateview={(value) => (dataView = value)}
-									></ViewHeaderData>
-								</div>
-							{/await}
-						</section>
-
-						<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
-							{#await import('$lib/components/View/MetadataModels/Data/Component.svelte') then { default: ViewMetadataModelsData }}
-								<ViewMetadataModelsData
-									metadatamodel={metadataModelsSearchMetadataModel}
-									data={metadataModelsSearchResults}
+				<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+					{#if metadataModelsSearch.showquerypanel}
+						<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+							{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+								<QueryPanel
 									{themecolor}
 									{theme}
 									{telemetry}
-									view={dataView}
-									updatemetadatamodel={updateMetadataModelsMetadataModel}
-									filterexcludeindexes={metadataModelsSearchFilterExcludeIndexes}
-									rowclick={(_, index) => {
-										const metadataModels: Domain.Entities.MetadataModels.Interface = metadataModelsSearchResults[index]
-										if (Array.isArray(metadataModels.id) && metadataModels.id.length > 0) {
-											datum.metadata_models_id = metadataModels.id[0]
-										}
-										currentTab = Tab.DATUM
+									metadatamodel={metadataModelsSearch.searchmetadatamodel}
+									data={metadataModelsSearch.searchresults}
+									queryconditions={metadataModelsSearch.queryconditions}
+									filterexcludeindexes={metadataModelsSearch.filterexcludeindexes}
+									updatefilterexcludeindexes={(value) => {
+										metadataModelsSearch.filterexcludeindexes = value
+										State.Toast.Type = Domain.Entities.Toast.Type.INFO
+										State.Toast.Message = `${metadataModelsSearch.filterexcludeindexes.length} local results filtered out`
 									}}
-								></ViewMetadataModelsData>
+									updatemetadatamodel={(value: any) => {
+										if (metadataModelsSearch.updatemedataModel) {
+											metadataModelsSearch.updatemedataModel(value)
+										}
+									}}
+									updatequeryconditions={(value) => {
+										metadataModelsSearch.queryconditions = value
+									}}
+									hidequerypanel={() => (metadataModelsSearch.showquerypanel = false)}
+								></QueryPanel>
 							{/await}
 						</section>
-					</section>
-				{/if}
-			</main>
-		{:catch e}
-			{@render awaiterror(e)}
-		{/await}
+					{/if}
+
+					{#if !metadataModelsSearch.showquerypanel}
+						<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+							<section class="z-[2] flex w-full">
+								{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+									<div class="h-fit w-full flex-1 self-center">
+										<ViewHeaderData title={'Pick Metadata Model...'} view={metadataModelsSearch.view} {themecolor} {theme} updateview={(value) => (metadataModelsSearch.view = value)}
+										></ViewHeaderData>
+									</div>
+								{/await}
+							</section>
+
+							<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+								{#await import('$lib/components/View/MetadataModels/Data/Component.svelte') then { default: ViewMetadataModelsData }}
+									<ViewMetadataModelsData
+										metadatamodel={metadataModelsSearch.searchmetadatamodel}
+										data={metadataModelsSearch.searchresults}
+										{themecolor}
+										{theme}
+										{telemetry}
+										view={metadataModelsSearch.view}
+										updatemetadatamodel={(value: any) => {
+											if (metadataModelsSearch.updatemedataModel) {
+												metadataModelsSearch.updatemedataModel(value)
+											}
+										}}
+										filterexcludeindexes={metadataModelsSearch.filterexcludeindexes}
+										rowclick={(_, index) => {
+											const metadataModels: Domain.Entities.MetadataModels.Interface = metadataModelsSearch.searchresults![index]
+											if (Array.isArray(metadataModels.id) && metadataModels.id.length > 0) {
+												datum.metadata_models_id = metadataModels.id[0]
+											}
+											currentTab = Tab.DATUM
+										}}
+									></ViewMetadataModelsData>
+								{/await}
+							</section>
+						</section>
+					{/if}
+				</main>
+			{:catch e}
+				{@render awaiterror(e)}
+			{/await}
+		{/if}
 	{/if}
 </div>
 

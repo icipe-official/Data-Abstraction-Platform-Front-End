@@ -968,6 +968,8 @@
 														abstractionsSearch.searchdata()
 													}
 												}}
+												viewdatasearch={abstractionsSearch.viewdatasearch}
+												updateviewdatasearch={(value) => (abstractionsSearch.viewdatasearch = value)}
 											></ViewAbstractionsSearchBar>
 										</div>
 									{/await}

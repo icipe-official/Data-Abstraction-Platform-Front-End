@@ -15,6 +15,7 @@ export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch {
 		showquerypanel: false,
 		selectedindexes: [],
 		view: 'list',
+		viewdatasearch: {},
 		updatemedataModel(value) {
 			this.searchmetadatamodel = value
 			if (this.search) {
@@ -27,9 +28,13 @@ export function NewViewSearch(): Domain.Interfaces.MetadataModels.ViewSearch {
 			}
 
 			State.Loading.value = `Searching ${Domain.Entities.Abstractions.RepositoryName}...`
+
 			try {
 				await this.search.Search(
-					Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(this.queryconditions!, [this.quicksearchquerycondition!]),
+					Utils.MetadataModel.InsertNewQueryConditionToQueryConditions(this.queryconditions!, [
+						this.quicksearchquerycondition!,
+						...Utils.MetadataModel.MergeViewSearchQueryConditions(this.viewdatasearch || {})
+					]),
 					this.authcontextdirectorygroupid || undefined,
 					this.authcontextdirectorygroupid || undefined,
 					2,

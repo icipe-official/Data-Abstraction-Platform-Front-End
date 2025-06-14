@@ -1,4 +1,12 @@
-import { Domain, MetadataModel } from '$lib'
+import { Domain, MetadataModel, Utils } from '$lib'
+
+export interface ViewDataSearch {
+	dataQCKey?: Utils.MetadataModel.FieldGroupQueryProperties | undefined
+	queryConditions?: {
+		metadataModel?: Domain.Entities.MetadataModels.Interface
+		queryCondition?: MetadataModel.QueryConditions[]
+	}[]
+}
 
 export interface ViewSearch {
 	context?: string
@@ -7,6 +15,7 @@ export interface ViewSearch {
 	search?: Search
 	queryconditions?: MetadataModel.QueryConditions[]
 	quicksearchquerycondition?: MetadataModel.QueryConditions
+	viewdatasearch?: ViewDataSearch
 	searchmetadatamodel?: any
 	searchresults?: any[]
 	filterexcludeindexes?: number[]

@@ -1,4 +1,60 @@
-import { MetadataModel } from '$lib'
+import { Domain, MetadataModel, Utils } from '$lib'
+
+export function MergeViewSearchQueryConditions(viewDataSearch: Domain.Interfaces.MetadataModels.ViewDataSearch): MetadataModel.QueryConditions[] {
+	if (!viewDataSearch.dataQCKey || !Array.isArray(viewDataSearch.queryConditions) || viewDataSearch.queryConditions.length === 0) {
+		return []
+	}
+
+	const tableCollectionUid = viewDataSearch.dataQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_TABLE_COLLECTION_UID]
+	if (typeof tableCollectionUid !== 'string') {
+		return []
+	}
+
+	const fieldColumnName = viewDataSearch.dataQCKey.fieldGroup[MetadataModel.FgProperties.DATABASE_FIELD_COLUMN_NAME]
+	if (typeof fieldColumnName !== 'string') {
+		return []
+	}
+
+	let newQueryConditions: MetadataModel.QueryConditions[] = []
+
+	let newQueryConditionIndex = -1
+	for (const vdsQc of viewDataSearch.queryConditions) {
+		if (!Array.isArray(vdsQc.metadataModel?.data) || vdsQc.metadataModel.data.length === 0) {
+			continue
+		}
+
+		const model = vdsQc.metadataModel.data[0]
+		if (typeof model[MetadataModel.FgProperties.FIELD_GROUP_KEY] !== 'string') {
+			continue
+		}
+
+		const qcKey = Utils.MetadataModel.GetQueryKeyFromFieldGroupKey(model[MetadataModel.FgProperties.FIELD_GROUP_KEY])
+
+		if (!Array.isArray(vdsQc.queryCondition)) {
+			continue
+		}
+
+		newQueryConditions.push({})
+		newQueryConditionIndex += 1
+		for (const qc of vdsQc.queryCondition) {
+			if (typeof qc !== 'object' || Array.isArray(qc)) {
+				continue
+			}
+
+			for (const eachQcKey of Object.keys(qc)) {
+				const eachQc: MetadataModel.IQueryCondition = JSON.parse(JSON.stringify(qc[eachQcKey]))
+				eachQc[MetadataModel.QcProperties.D_TABLE_COLLECTION_UID] = tableCollectionUid
+				eachQc[MetadataModel.QcProperties.D_FIELD_COLUMN_NAME] = fieldColumnName
+
+				const newQcKey = eachQcKey.replace(qcKey, `${viewDataSearch.dataQCKey.qcKey}${MetadataModel.ARRAY_INDEX_PLACEHOLDER}`)
+
+				newQueryConditions[newQueryConditionIndex][newQcKey] = eachQc
+			}
+		}
+	}
+
+	return newQueryConditions.filter((value) => Object.keys(value).length > 0)
+}
 
 export function InsertNewQueryConditionToQueryConditions(currQcs: MetadataModel.QueryConditions[], newQcs: MetadataModel.QueryConditions[]) {
 	if (Array.isArray(currQcs) && currQcs.length > 0) {

@@ -149,6 +149,8 @@
 									directoryGroupsSearch.searchdata()
 								}
 							}}
+							viewdatasearch={directoryGroupsSearch.viewdatasearch}
+							updateviewdatasearch={(value) => (directoryGroupsSearch.viewdatasearch = value)}
 						></ViewDirectoryGroupsSearchBar>
 					</div>
 				{/await}

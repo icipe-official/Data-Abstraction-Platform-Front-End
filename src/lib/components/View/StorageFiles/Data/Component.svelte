@@ -610,7 +610,7 @@
 
 {#if showviewfile}
 	<dialog bind:this={viewFileDialogElement} id="selected-directory-group-dialog" class="modal mr-0 max-w-full pr-0">
-		<div class="flex h-full w-full min-w-full flex-1 flex-col">
+		<div class="flex h-full w-full min-w-full flex-1 flex-col overflow-hidden">
 			{#if typeof viewFileIndex === 'number'}
 				{@const file: Domain.Entities.StorageFiles.Interface = data[viewFileIndex]}
 

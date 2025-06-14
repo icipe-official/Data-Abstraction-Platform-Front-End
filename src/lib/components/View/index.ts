@@ -1,3 +1,4 @@
+export * from './DataSearch'
 export * as AbstractionsReviewsComments from './AbstractionsReviewsComments'
 export * as AbstractionsReviews from './AbstractionsReviews'
 export * as Abstractions from './Abstractions'

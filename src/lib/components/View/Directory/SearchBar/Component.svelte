@@ -14,6 +14,9 @@
 		search?: () => void
 		searchtitle?: string
 		joindepth?: number
+		authcontextdirectorygroupid?: string
+		viewdatasearch?: Domain.Interfaces.MetadataModels.ViewDataSearch
+		updateviewdatasearch?: (value: Domain.Interfaces.MetadataModels.ViewDataSearch) => void
 	}
 
 	let {
@@ -26,7 +29,10 @@
 		showquerypanel = undefined,
 		search = undefined,
 		searchtitle = 'Search by directory name, or directory data...',
-		joindepth = 0
+		joindepth = 0,
+		authcontextdirectorygroupid = undefined,
+		viewdatasearch = {},
+		updateviewdatasearch = undefined
 	}: Props = $props()
 
 	let viewQueryCondition = $derived(JSON.parse(JSON.stringify(querycondition)))
@@ -65,7 +71,22 @@
 			}
 		}
 	}
+
+	let dataQCKey = $derived(
+		Utils.MetadataModel.GetFieldQueryPropertiesByDatabaseProperties(
+			metadatamodel,
+			Domain.Entities.Directory.FieldColumn.Data,
+			Domain.Entities.Directory.RepositoryName,
+			joindepth
+		)
+	)
+
+	let windowWidth: number = $state(0)
+
+	let showFilterPanel: boolean = $state(false)
 </script>
+
+<svelte:window bind:innerWidth={windowWidth} />
 
 <div class="flex h-fit {directoryGroupsQCKey ? 'w-full' : 'w-fit'} flex-col">
 	<section
@@ -97,17 +118,15 @@
 			/>
 		{/if}
 
-		{#if showquerypanel}
-			<button class="join-item btn btn-sm btn-ghost" onclick={showquerypanel} aria-label="Show Query Panel">
-				<!--mdi:filter-plus source: https://icon-sets.iconify.design-->
-				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path
-						fill="var({Utils.Theme.GetColor(themecolor)})"
-						d="M12 12v7.88c.04.3-.06.62-.29.83a.996.996 0 0 1-1.41 0L8.29 18.7a.99.99 0 0 1-.29-.83V12h-.03L2.21 4.62a1 1 0 0 1 .17-1.4c.19-.14.4-.22.62-.22h14c.22 0 .43.08.62.22a1 1 0 0 1 .17 1.4L12.03 12zm3 5h3v-3h2v3h3v2h-3v3h-2v-3h-3z"
-					/>
-				</svg>
-			</button>
-		{/if}
+		<button class="join-item btn btn-sm btn-ghost" onclick={() => (showFilterPanel = !showFilterPanel)} aria-label="Show Query Panel">
+			<!--mdi:filter-plus source: https://icon-sets.iconify.design-->
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+				<path
+					fill="var({Utils.Theme.GetColor(themecolor)})"
+					d="M12 12v7.88c.04.3-.06.62-.29.83a.996.996 0 0 1-1.41 0L8.29 18.7a.99.99 0 0 1-.29-.83V12h-.03L2.21 4.62a1 1 0 0 1 .17-1.4c.19-.14.4-.22.62-.22h14c.22 0 .43.08.62.22a1 1 0 0 1 .17 1.4L12.03 12zm3 5h3v-3h2v3h3v2h-3v3h-2v-3h-3z"
+				/>
+			</svg>
+		</button>
 
 		{#if search}
 			<button class="join-item btn btn-sm btn-ghost" onclick={search} aria-label="Search Data">
@@ -120,4 +139,36 @@
 			</button>
 		{/if}
 	</section>
+
+	{#if showFilterPanel}
+		<div class="relative w-full">
+			<div
+				class="absolute w-full {theme === Domain.Entities.Theme.Theme.DARK
+					? 'bg-base-200'
+					: 'bg-white'} flex flex-col gap-y-6 rounded-lg p-2 shadow-md shadow-gray-800"
+			>
+				<section class="flex flex-1 flex-col gap-y-2">
+					{#if dataQCKey}
+						{#await import('$lib/components/View/DataSearch/Component.svelte') then { default: DataSearch }}
+							<DataSearch {theme} {themecolor} {telemetry} {viewdatasearch} dataqckey={dataQCKey} {updateviewdatasearch} {authcontextdirectorygroupid}
+							></DataSearch>
+						{/await}
+					{/if}
+				</section>
+
+				{#if showquerypanel}
+					<button
+						class="join-item btn btn-sm btn-ghost italic"
+						onclick={() => {
+							showquerypanel()
+							showFilterPanel = false
+						}}
+						aria-label="Show Query Panel"
+					>
+						...view more...
+					</button>
+				{/if}
+			</div>
+		</div>
+	{/if}
 </div>
