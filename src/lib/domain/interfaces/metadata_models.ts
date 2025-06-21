@@ -1,5 +1,17 @@
 import { Domain, MetadataModel, Utils } from '$lib'
 
+export interface ExportData {
+	exportdatavalid: () => boolean
+	search?: Domain.Entities.MetadataModel.ISearch
+	initsearch?: () => Promise<void>
+	exportdata?: () => Promise<void>
+	exportdatafilevalid: () => boolean
+	exportdatafile?: Domain.Entities.StorageFilesTemporary.Interface
+	telemetry?: Domain.Interfaces.ITelemetry
+	authcontextdirectorygroupid?: string
+	context?: string
+}
+
 export interface ViewDataSearch {
 	dataQCKey?: Utils.MetadataModel.FieldGroupQueryProperties | undefined
 	queryConditions?: {

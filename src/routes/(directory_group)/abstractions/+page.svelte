@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Domain, State, Component, Interfaces, MetadataModel, Utils } from '$lib'
-	import { getContext, onMount, untrack } from 'svelte'
+	import { getContext, untrack } from 'svelte'
 	import type { PageProps } from './$types'
 	import { goto } from '$app/navigation'
 
@@ -420,6 +420,54 @@
 	}
 
 	let showUpdateDirectoryID: boolean = $state(false)
+
+	let showExportToCsv: boolean = $state(false)
+
+	let exportAbstractionsStep: number = $state(0)
+
+	let metadataModelsSearch = $state(Interfaces.MetadataModels.NewViewSearch())
+	$effect(() => {
+		if (
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
+		) {
+			untrack(() => {
+				metadataModelsSearch.authcontextdirectorygroupid = authContextDirectoryGroupID
+				metadataModelsSearch.context = COMPONENT_NAME
+				metadataModelsSearch.telemetry = telemetry
+			})
+		}
+	})
+
+	let exportAbstractions = $state(Interfaces.Abstractions.NewExportData())
+	$effect(() => {
+		if (
+			State.Session.session?.iam_credential &&
+			Array.isArray(State.Session.session.iam_credential.id) &&
+			State.Session.session.iam_credential.id.length > 0
+		) {
+			untrack(() => {
+				exportAbstractions.authcontextdirectorygroupid = authContextDirectoryGroupID
+				exportAbstractions.context = COMPONENT_NAME
+				exportAbstractions.telemetry = telemetry
+			})
+		}
+	})
+	$effect(() => {
+		if (Array.isArray(metadataModelsSearch.selectedindexes) && metadataModelsSearch.selectedindexes.length > 0) {
+			untrack(() => {
+				exportAbstractions.updatedatametadatamodel(metadataModelsSearch.searchresults![metadataModelsSearch.selectedindexes![0]])
+			})
+		} else {
+			untrack(() => {
+				exportAbstractions.updatedatametadatamodel(undefined)
+			})
+		}
+	})
+
+	let exportAbstractionsValid: boolean = $derived(exportAbstractions.exportdatavalid())
+	let exportAbstractionsFileValid: boolean = $derived(exportAbstractions.exportdatafilevalid())
 </script>
 
 <svelte:window bind:innerWidth={windowWidth} />
@@ -567,10 +615,10 @@
 														State.Toast.Message = `${iamGroupAuthorizationSearch.filterexcludeindexes.length} local results filtered out`
 													}}
 													updatemetadatamodel={(value: any) => {
-															if (iamGroupAuthorizationSearch.updatemedataModel) {
-																iamGroupAuthorizationSearch.updatemedataModel(value)
-															}
-														}}
+														if (iamGroupAuthorizationSearch.updatemedataModel) {
+															iamGroupAuthorizationSearch.updatemedataModel(value)
+														}
+													}}
 													updatequeryconditions={(value) => {
 														iamGroupAuthorizationSearch.queryconditions = value
 													}}
@@ -946,6 +994,273 @@
 						directorygroupid={data.directory_group_id}
 					></AdministrationAbstractionsReassign>
 				{/await}
+			{:else if showExportToCsv}
+				{#if exportAbstractions.initsearch}
+					{#await exportAbstractions.initsearch()}
+						{@render awaitloading()}
+					{:then}
+						<header class="z-[3] flex flex-col gap-y-1">
+							<section class="flex gap-x-1">
+								<button
+									class="btn btn-ghost btn-circle btn-md flex self-center"
+									aria-label="Close Export Abstractions"
+									onclick={() => {
+										showExportToCsv = false
+									}}
+								>
+									<!--mdi:arrow-back source: https://icon-sets.iconify.design-->
+									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+										<path
+											fill="var({Utils.Theme.GetColor(State.ThemeColor.value)})"
+											d="M20 11v2H8l5.5 5.5l-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5L8 11z"
+										/>
+									</svg>
+								</button>
+								<span class="self-center"> Export Abstraction(s) to csv</span>
+							</section>
+						</header>
+
+						<nav
+							class="flex w-full justify-center rounded-lg p-2 {State.Theme.value === Domain.Entities.Theme.Theme.DARK
+								? 'bg-base-100'
+								: 'bg-gray-100'}"
+						>
+							<div class="steps z-[2]">
+								<li
+									class="step {exportAbstractionsStep >= 0
+										? State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+											? 'step-primary'
+											: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+												? 'step-secondary'
+												: 'step-accent'
+										: ''} overflow-visible"
+								>
+									<button
+										class="link link-hover"
+										onclick={() => {
+											exportAbstractionsStep = 0
+										}}
+									>
+										Pick abstraction data model
+									</button>
+								</li>
+
+								<li
+									class="step {exportAbstractionsStep >= 1
+										? State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+											? 'step-primary'
+											: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+												? 'step-secondary'
+												: 'step-accent'
+										: ''} overflow-visible"
+								>
+									<button
+										class="link link-hover"
+										onclick={() => {
+											exportAbstractionsStep = 1
+										}}
+									>
+										Setup Query Conditions(s)
+									</button>
+								</li>
+
+								<li
+									class="step {exportAbstractionsStep >= 2
+										? State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+											? 'step-primary'
+											: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+												? 'step-secondary'
+												: 'step-accent'
+										: ''} overflow-visible"
+								>
+									<button
+										class="link link-hover"
+										onclick={() => {
+											exportAbstractionsStep = 2
+										}}
+									>
+										Export Abstractions(s)
+									</button>
+								</li>
+							</div>
+						</nav>
+
+						{#if exportAbstractionsStep === 0}
+							{#if metadataModelsSearch.getdisplaydata}
+								{#await metadataModelsSearch.getdisplaydata()}
+									{@render awaitloading()}
+								{:then}
+									<header class="z-[2] flex justify-center">
+										{#await import('$lib/components/View/MetadataModels/SearchBar/Component.svelte') then { default: ViewMetadataModelsSearchBar }}
+											<div class="w-full">
+												<ViewMetadataModelsSearchBar
+													metadatamodel={metadataModelsSearch.searchmetadatamodel}
+													themecolor={State.ThemeColor.value}
+													theme={State.Theme.value}
+													{telemetry}
+													querycondition={metadataModelsSearch.quicksearchquerycondition}
+													updatequerycondition={(value) => {
+														metadataModelsSearch.quicksearchquerycondition = value
+													}}
+													showquerypanel={() => {
+														metadataModelsSearch.showquerypanel = !metadataModelsSearch.showquerypanel
+													}}
+													search={() => {
+														if (metadataModelsSearch.searchdata) {
+															metadataModelsSearch.searchdata()
+														}
+													}}
+												></ViewMetadataModelsSearchBar>
+											</div>
+										{/await}
+									</header>
+
+									<main class="z-[1] flex flex-[9.5] gap-x-2 overflow-hidden">
+										{#if metadataModelsSearch.showquerypanel}
+											<section class="flex flex-[2] flex-col gap-y-2 overflow-hidden">
+												{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+													<QueryPanel
+														themecolor={State.ThemeColor.value}
+														theme={State.Theme.value}
+														{telemetry}
+														metadatamodel={metadataModelsSearch.searchmetadatamodel}
+														data={metadataModelsSearch.searchresults}
+														queryconditions={metadataModelsSearch.queryconditions}
+														filterexcludeindexes={metadataModelsSearch.filterexcludeindexes}
+														updatefilterexcludeindexes={(value) => {
+															metadataModelsSearch.filterexcludeindexes = value
+															State.Toast.Type = Domain.Entities.Toast.Type.INFO
+															State.Toast.Message = `${metadataModelsSearch.filterexcludeindexes.length} local results filtered out`
+														}}
+														updatemetadatamodel={(value: any) => {
+															if (metadataModelsSearch.updatemedataModel) {
+																metadataModelsSearch.updatemedataModel(value)
+															}
+														}}
+														updatequeryconditions={(value) => {
+															metadataModelsSearch.queryconditions = value
+														}}
+														hidequerypanel={() => (metadataModelsSearch.showquerypanel = false)}
+													></QueryPanel>
+												{/await}
+											</section>
+										{/if}
+
+										{#if !metadataModelsSearch.showquerypanel}
+											<section class="flex {windowWidth > 1500 ? 'flex-[3]' : 'flex-2'} flex-col overflow-hidden rounded-lg">
+												<section class="z-[2] flex w-full">
+													{#await import('$lib/components/View/Header/Data/Component.svelte') then { default: ViewHeaderData }}
+														<div class="h-fit w-full flex-1 self-center">
+															<ViewHeaderData
+																title={'Pick Metadata Model...'}
+																view={metadataModelsSearch.view}
+																themecolor={State.ThemeColor.value}
+																theme={State.Theme.value}
+																updateview={(value) => (metadataModelsSearch.view = value)}
+															></ViewHeaderData>
+														</div>
+													{/await}
+												</section>
+
+												<section class="z-[1] flex h-full w-full flex-1 flex-col overflow-hidden">
+													{#await import('$lib/components/View/MetadataModels/Data/Component.svelte') then { default: ViewMetadataModelsData }}
+														<ViewMetadataModelsData
+															metadatamodel={metadataModelsSearch.searchmetadatamodel}
+															data={metadataModelsSearch.searchresults}
+															themecolor={State.ThemeColor.value}
+															theme={State.Theme.value}
+															{telemetry}
+															view={metadataModelsSearch.view}
+															updatemetadatamodel={(value: any) => {
+																if (metadataModelsSearch.updatemedataModel) {
+																	metadataModelsSearch.updatemedataModel(value)
+																}
+															}}
+															filterexcludeindexes={metadataModelsSearch.filterexcludeindexes}
+															addclickcolumn={false}
+															addselectcolumn={true}
+															multiselectcolumns={false}
+															updateselecteddataindexes={(value) => (metadataModelsSearch.selectedindexes = value)}
+															selecteddataindexes={metadataModelsSearch.selectedindexes}
+														></ViewMetadataModelsData>
+													{/await}
+												</section>
+											</section>
+										{/if}
+									</main>
+								{:catch e}
+									{@render awaiterror(e)}
+								{/await}
+							{/if}
+						{:else if exportAbstractionsStep === 1}
+							<div class="flex flex-1 justify-center self-center overflow-hidden">
+								{#await import("$lib/components/QueryPanel/Component.svelte") then { default: QueryPanel }}
+									<QueryPanel
+										themecolor={State.ThemeColor.value}
+										theme={State.Theme.value}
+										{telemetry}
+										metadatamodel={exportAbstractions.search?.metadata_model}
+										queryconditions={exportAbstractions.search?.query_conditions}
+										updatemetadatamodel={(value: any) => {
+											if (exportAbstractions.search?.metadata_model) {
+												exportAbstractions.search.metadata_model = value
+											}
+										}}
+										updatequeryconditions={(value) => {
+											if (exportAbstractions.search?.query_conditions) {
+												exportAbstractions.search.query_conditions = value
+											}
+										}}
+									></QueryPanel>
+								{/await}
+							</div>
+						{:else if exportAbstractionsStep === 2}
+							<div class="flex flex-1 justify-center">
+								<div class="flex h-fit w-fit flex-col gap-y-16 self-center justify-self-center md:max-w-[80%]">
+									<button
+										class="btn btn-lg {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+											? 'btn-primary'
+											: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+												? 'btn-secondary'
+												: 'btn-accent'} w-full self-center"
+										aria-label="Create Group Rule Authorizations"
+										onclick={async () => {
+											if (exportAbstractions.exportdata) {
+												try {
+													await exportAbstractions.exportdata()
+													State.Toast.Type = Domain.Entities.Toast.Type.SUCCESS
+													State.Toast.Message = `${Domain.Entities.Url.Action.EXPORT} ${Domain.Entities.Abstractions.RepositoryName} successful`
+												} catch (e) {
+													State.Toast.Type = Domain.Entities.Toast.Type.ERROR
+													State.Toast.Message = e as any[]
+												}
+											}
+										}}
+										disabled={!exportAbstractionsValid}
+									>
+										Export
+									</button>
+
+									{#if exportAbstractionsFileValid}
+										<a
+											class="btn btn-lg {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+												? 'btn-primary'
+												: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+													? 'btn-secondary'
+													: 'btn-accent'} w-full self-center"
+											href="{Domain.Entities.Url.ApiUrlPaths.Storage.FilesTmp}/{exportAbstractions.exportdatafile!.id![0]}"
+											target="_blank"
+										>
+											Download
+										</a>
+									{/if}
+								</div>
+							</div>
+						{/if}
+					{:catch e}
+						{@render awaiterror(e)}
+					{/await}
+				{/if}
 			{:else}
 				<header class="z-[2] flex justify-between gap-x-2">
 					{#await import('$lib/components/View/Abstractions/SearchBar/Component.svelte') then { default: ViewAbstractionsSearchBar }}
@@ -968,12 +1283,39 @@
 									}
 								}}
 								viewdatasearch={abstractionsSearch.viewdatasearch}
-								updateviewdatasearch={(value) =>  abstractionsSearch.viewdatasearch = value}
+								updateviewdatasearch={(value) => (abstractionsSearch.viewdatasearch = value)}
 							></ViewAbstractionsSearchBar>
 						</div>
 					{/await}
 
 					<section class="flex gap-x-6">
+						<button
+							class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+								? 'btn-primary tooltip-primary'
+								: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+									? 'btn-secondary tooltip-secondary'
+									: 'btn-accent tooltip-accent'}"
+							aria-label="Export abstraction(s) to csv"
+							data-tip="Export abstraction(s) to csv"
+							onclick={() => (showExportToCsv = true)}
+						>
+							<!--foundation:page-export-csv source: https://icon-sets.iconify.design-->
+							<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 100 100">
+								<path
+									fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})"
+									d="M94.284 65.553L75.825 52.411a1.25 1.25 0 0 0-1.312-.093c-.424.218-.684.694-.685 1.173l.009 6.221H57.231c-.706 0-1.391.497-1.391 1.204v11.442c0 .707.685 1.194 1.391 1.194h16.774v6.27c0 .478.184.917.609 1.136s.853.182 1.242-.097l18.432-13.228c.335-.239.477-.626.477-1.038v-.002c0-.414-.144-.8-.481-1.04"
+								/>
+								<path
+									fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})"
+									d="M64.06 78.553h-6.49a1.73 1.73 0 0 0-1.73 1.73h-.007v3.01H15.191V36.16h17.723a1.73 1.73 0 0 0 1.73-1.73V16.707h21.188v36.356h.011a1.73 1.73 0 0 0 1.726 1.691h6.49c.943 0 1.705-.754 1.726-1.691h.004V12.5h-.005V8.48a1.73 1.73 0 0 0-1.73-1.73h-32.87L5.235 32.7v58.819c0 .956.774 1.73 1.73 1.73h57.089a1.73 1.73 0 0 0 1.73-1.73v-2.448h.005v-8.79a1.73 1.73 0 0 0-1.729-1.728"
+								/>
+								<path
+									fill="var({Utils.Theme.GetColorContent(State.ThemeColor.value)})"
+									d="M26.18 64.173c.831 0 1.55.623 1.786 1.342l2.408-1.121c-.553-1.273-1.771-2.685-4.193-2.685c-2.893 0-5.079 1.924-5.079 4.775c0 2.837 2.187 4.774 5.079 4.774c2.422 0 3.654-1.467 4.193-2.699l-2.408-1.107c-.235.719-.955 1.342-1.786 1.342c-1.342 0-2.242-1.024-2.242-2.311s.899-2.31 2.242-2.31m9.476 4.734a4.3 4.3 0 0 1-2.976-1.19l-1.453 2.076c.982.886 2.325 1.467 4.291 1.467c2.477 0 3.986-1.176 3.986-3.211c0-3.432-5.135-2.685-5.135-3.557c0-.235.152-.415.706-.415c.872 0 1.91.304 2.712.913l1.495-1.979c-1.052-.858-2.408-1.287-3.917-1.287c-2.533 0-3.833 1.495-3.833 3.059c0 3.64 5.148 2.74 5.148 3.626c0 .359-.498.498-1.024.498m7.615-7.045h-3.169l3.404 9.231h3.516l3.404-9.231h-3.169l-1.993 6.214z"
+								/>
+							</svg>
+						</button>
+
 						<button
 							class="btn btn-md btn-circle tooltip tooltip-left self-center {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
 								? 'btn-primary tooltip-primary'

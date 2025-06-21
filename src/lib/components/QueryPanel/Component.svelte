@@ -106,32 +106,34 @@
 					</svg>
 				{/if}
 			</button>
-			<button
-				class="join-item btn btn-md flex-1 {themecolor === Domain.Entities.Theme.Color.PRIMARY
-					? 'btn-primary'
-					: themecolor === Domain.Entities.Theme.Color.SECONDARY
-						? 'btn-secondary'
-						: 'btn-accent'}"
-				onclick={() => {
-					if (Array.isArray(viewQueryConditions) && Array.isArray(data)) {
-						viewFilterExcludeIndexes = MetadataModel.FilterData(viewQueryConditions, data)
-						onupdatefilterexcludeindexes()
-					}
-				}}
-				disabled={!Array.isArray(viewQueryConditions) || viewQueryConditions.length === 0 || !Array.isArray(data)}
-			>
-				{#if windowWidth > 768}
-					filter local data
-				{:else}
-					<!--mdi:filter source: https://icon-sets.iconify.design-->
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-						<path
-							fill="var({Utils.Theme.GetColorContent(themecolor)})"
-							d="M14 12v7.88c.04.3-.06.62-.29.83a.996.996 0 0 1-1.41 0l-2.01-2.01a.99.99 0 0 1-.29-.83V12h-.03L4.21 4.62a1 1 0 0 1 .17-1.4c.19-.14.4-.22.62-.22h14c.22 0 .43.08.62.22a1 1 0 0 1 .17 1.4L14.03 12z"
-						/>
-					</svg>
-				{/if}
-			</button>
+			{#if Array.isArray(data) && data.length > 0}
+				<button
+					class="join-item btn btn-md flex-1 {themecolor === Domain.Entities.Theme.Color.PRIMARY
+						? 'btn-primary'
+						: themecolor === Domain.Entities.Theme.Color.SECONDARY
+							? 'btn-secondary'
+							: 'btn-accent'}"
+					onclick={() => {
+						if (Array.isArray(viewQueryConditions) && Array.isArray(data)) {
+							viewFilterExcludeIndexes = MetadataModel.FilterData(viewQueryConditions, data)
+							onupdatefilterexcludeindexes()
+						}
+					}}
+					disabled={!Array.isArray(viewQueryConditions) || viewQueryConditions.length === 0 || !Array.isArray(data)}
+				>
+					{#if windowWidth > 768}
+						filter local data
+					{:else}
+						<!--mdi:filter source: https://icon-sets.iconify.design-->
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path
+								fill="var({Utils.Theme.GetColorContent(themecolor)})"
+								d="M14 12v7.88c.04.3-.06.62-.29.83a.996.996 0 0 1-1.41 0l-2.01-2.01a.99.99 0 0 1-.29-.83V12h-.03L4.21 4.62a1 1 0 0 1 .17-1.4c.19-.14.4-.22.62-.22h14c.22 0 .43.08.62.22a1 1 0 0 1 .17 1.4L14.03 12z"
+							/>
+						</svg>
+					{/if}
+				</button>
+			{/if}
 			{#if hidequerypanel}
 				<button
 					class="join-item btn btn-md flex-[0.5] {themecolor === Domain.Entities.Theme.Color.PRIMARY

@@ -45,7 +45,7 @@ export class SearchData implements Domain.Interfaces.MetadataModels.Search {
 		if (typeof targetJoinDepth === 'number') {
 			fetchUrl.searchParams.append(Domain.Entities.MetadataModel.SearchParams.TARGET_JOIN_DEPTH, `${targetJoinDepth}`)
 		}
-		const fetchResponse = await this.fetch(fetchUrl, { credentials: 'include' })
+		const fetchResponse = await this.fetch(fetchUrl, { credentials: 'include', signal })
 		const fetchData = await fetchResponse.json()
 		if (fetchResponse.ok) {
 			this.searchmetadatamodel = structuredClone(fetchData)

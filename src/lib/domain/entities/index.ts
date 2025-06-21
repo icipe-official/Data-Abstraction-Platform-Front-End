@@ -1,6 +1,7 @@
 export * as Iam from './iam'
 export * as Static from './static'
 export * as Url from './url'
+export * as StorageFilesTemporary from './storage_files_temporary'
 export * as StorageFiles from './storage_files'
 export * as StorageFilesAuthorizationIDs from './storage_files_authorization_ids'
 export * as MetadataModels from './metadata_models'

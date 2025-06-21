@@ -1,6 +1,5 @@
 export enum FieldColumn {
 	ID = 'id',
-	StorageDrivesID = 'storage_drives_id',
 	DirectoryGroupsID = 'directory_groups_id',
 	DirectoryID = 'directory_id',
 	StorageFileMimeType = 'storage_file_mime_type',
@@ -21,7 +20,6 @@ export const RepositoryName = 'storage_files'
 
 export interface Interface {
 	id?: string[]
-	storage_drives_id?: string[]
 	directory_groups_id?: string[]
 	directory_id?: string[]
 	storage_file_mime_type?: string[]

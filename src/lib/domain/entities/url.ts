@@ -53,12 +53,8 @@ export interface IApiUrlPaths {
 		Url: string
 	}
 	Storage: {
-		Drives: {
-			Types: string
-			Groups: string
-			Url: string
-		}
 		Files: string
+		FilesTmp: string
 	}
 	Abstractions: {
 		DirectoryGroups: string
@@ -79,12 +75,8 @@ export const ApiUrlPaths: IApiUrlPaths = {
 		Url: `${env.PUBLIC_API_CORE_URL}/abstractions`
 	},
 	Storage: {
-		Drives: {
-			Types: `${env.PUBLIC_API_CORE_URL}/storage/drives/types`,
-			Groups: `${env.PUBLIC_API_CORE_URL}/storage/drives/groups`,
-			Url: `${env.PUBLIC_API_CORE_URL}/storage/drives`
-		},
-		Files: `${env.PUBLIC_API_CORE_URL}/storage/files`
+		Files: `${env.PUBLIC_API_CORE_URL}/storage/files`,
+		FilesTmp: `${env.PUBLIC_API_CORE_URL}/storage/files/tmp`
 	},
 	Group: {
 		RuleAuthorizations: `${env.PUBLIC_API_CORE_URL}/group/rule-authorizations`,
@@ -131,7 +123,8 @@ export const enum Action {
 	UPDATE = 'update',
 	DELETE = 'delete',
 	UPSERT = 'upsert',
-	UPDATE_DIRECTORY = 'update_directory'
+	UPDATE_DIRECTORY = 'update_directory',
+	EXPORT = 'export'
 }
 
 export function AddBaseUrl(url: URL) {

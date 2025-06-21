@@ -16,7 +16,7 @@ export class Telemetry implements Domain.Interfaces.ITelemetry {
 
 		switch (true) {
 			case level >= Domain.Entities.Telemetry.LogLevel.DEBUG && level < Domain.Entities.Telemetry.LogLevel.INFO:
-				console.debug('DEBUG', '|', context, '|', msg, '|', ...args)
+				console.log('DEBUG', '|', context, '|', msg, '|', ...args)
 				if (trace) {
 					console.trace('DEBUG', context)
 				}

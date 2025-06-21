@@ -191,62 +191,52 @@ export class Convert2DArrayToObjects {
 			}
 
 			if (Array.isArray(mmGroupFields[fgKeySuffix][FgProperties.GROUP_READ_ORDER_OF_FIELDS])) {
-				if (mmGroupFields[fgKeySuffix][FgProperties.GROUP_EXTRACT_AS_SINGLE_FIELD]) {
-					const fields2dIndexes = this._get2DFieldsIndexesFromCurrentGroupIndexes(
-						mmGroupConversion.fields_2d_indexes,
-						mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_KEY]
-					)
+				if (!mmGroupFields[fgKeySuffix][FgProperties.GROUP_EXTRACT_AS_SINGLE_FIELD]) {
+					if (
+						GroupCanBeProcessedAs2D(mmGroupFields[fgKeySuffix]) &&
+						mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_VIEW_VALUES_IN_SEPARATE_COLUMNS] &&
+						!Number.isNaN(mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_VIEW_MAX_NO_OF_VALUES_IN_SEPARATE_COLUMNS]) &&
+						mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_VIEW_MAX_NO_OF_VALUES_IN_SEPARATE_COLUMNS] > 0
+					) {
+						newField.read_order_of_fields = mmGroupFields[fgKeySuffix][FgProperties.GROUP_READ_ORDER_OF_FIELDS]
 
-					if (fields2dIndexes.length == 0) {
-						throw [
-							this._initFgConversion.name,
-							`fields2dIndexes for mmGroupFields[${fgKeySuffix}][${FgProperties.GROUP_EXTRACT_AS_SINGLE_FIELD}] is empty`
-						]
-					}
+						newField.column_indexes_that_match_2d_index_header = new Array<number[]>(
+							Number(mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_VIEW_MAX_NO_OF_VALUES_IN_SEPARATE_COLUMNS])
+						)
+						for (let columnIndex = 0; columnIndex < newField.column_indexes_that_match_2d_index_header.length; columnIndex++) {
+							let columnIndexHeaders: number[] = []
+							for (let fIndex = 0; fIndex < this._2DFields.length; fIndex++) {
+								if (!IsGroupFieldsValid(this._2DFields[fIndex])) {
+									throw [this._initFgConversion.name, `this._2DFields[${fIndex}] is not an object`, this._2DFields[fIndex]]
+								}
 
-					newField.fields_2d_indexes = fields2dIndexes
-					mmGroupConversion.fields.push(newField)
-					continue
-				}
+								if (!IsFieldGroupKeyValid(this._2DFields[fIndex][FgProperties.FIELD_GROUP_KEY])) {
+									throw [
+										this._initFgConversion.name,
+										`this._2DFields[${fIndex}] is not a string`,
+										this._2DFields[fIndex][FgProperties.FIELD_GROUP_KEY]
+									]
+								}
 
-				if (
-					GroupCanBeProcessedAs2D(mmGroupFields[fgKeySuffix]) &&
-					mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_VIEW_VALUES_IN_SEPARATE_COLUMNS] &&
-					!Number.isNaN(mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_VIEW_MAX_NO_OF_VALUES_IN_SEPARATE_COLUMNS]) &&
-					mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_VIEW_MAX_NO_OF_VALUES_IN_SEPARATE_COLUMNS] > 0
-				) {
-					newField.read_order_of_fields = mmGroupFields[fgKeySuffix][FgProperties.GROUP_READ_ORDER_OF_FIELDS]
-
-					newField.column_indexes_that_match_2d_index_header = new Array<number[]>(
-						Number(mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_VIEW_MAX_NO_OF_VALUES_IN_SEPARATE_COLUMNS])
-					)
-					for (let columnIndex = 0; columnIndex < newField.column_indexes_that_match_2d_index_header.length; columnIndex++) {
-						let columnIndexHeaders: number[] = []
-						for (let fIndex = 0; fIndex < this._2DFields.length; fIndex++) {
-							if (!IsGroupFieldsValid(this._2DFields[fIndex])) {
-								throw [this._initFgConversion.name, `this._2DFields[${fIndex}] is not an object`, this._2DFields[fIndex]]
-							}
-
-							if (!IsFieldGroupKeyValid(this._2DFields[fIndex][FgProperties.FIELD_GROUP_KEY])) {
-								throw [this._initFgConversion.name, `this._2DFields[${fIndex}] is not a string`, this._2DFields[fIndex][FgProperties.FIELD_GROUP_KEY]]
-							}
-
-							if (
-								(this._2DFields[fIndex][FgProperties.FIELD_GROUP_KEY] as string).startsWith(mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_KEY])
-							) {
-								if (this._2DFields[fIndex][FgProperties.FIELD_VIEW_VALUES_IN_SEPARATE_COLUMNS_HEADER_INDEX] === columnIndex) {
-									columnIndexHeaders.push(fIndex)
+								if (
+									(this._2DFields[fIndex][FgProperties.FIELD_GROUP_KEY] as string).startsWith(
+										mmGroupFields[fgKeySuffix][FgProperties.FIELD_GROUP_KEY]
+									)
+								) {
+									if (this._2DFields[fIndex][FgProperties.FIELD_VIEW_VALUES_IN_SEPARATE_COLUMNS_HEADER_INDEX] === columnIndex) {
+										columnIndexHeaders.push(fIndex)
+									}
 								}
 							}
+							newField.column_indexes_that_match_2d_index_header[columnIndex] = columnIndexHeaders
 						}
-						newField.column_indexes_that_match_2d_index_header[columnIndex] = columnIndexHeaders
+						mmGroupConversion.fields.push(newField)
+						continue
 					}
-					mmGroupConversion.fields.push(newField)
+
+					mmGroupConversion.groups.push(this._initFgConversion(mmGroupFields[fgKeySuffix], databaseColumnNames))
 					continue
 				}
-
-				mmGroupConversion.groups.push(this._initFgConversion(mmGroupFields[fgKeySuffix], databaseColumnNames))
-				continue
 			}
 
 			const fields2dIndexes = this._get2DFieldsIndexesFromCurrentGroupIndexes(

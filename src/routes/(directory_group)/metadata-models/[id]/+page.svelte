@@ -21,8 +21,8 @@
 		datum = Interfaces.MetadataModels.Datum({
 			authContextDirectoryGroupID: data.directory_group_id,
 			fetchedData: {
-				metadata_model: JSON.parse(JSON.stringify(data.current_datum?.metadata_model)),
-				datum: JSON.parse(JSON.stringify(data.current_datum?.datum))
+				metadata_model: data.current_datum ? JSON.parse(JSON.stringify(data.current_datum?.metadata_model)) : undefined,
+				datum: data.current_datum ? JSON.parse(JSON.stringify(data.current_datum?.datum)) : undefined
 			},
 			telemetry,
 			currentDirectoryGroupID: data.directory_group_id!,
@@ -354,47 +354,49 @@
 									</header>
 
 									<main class="z-[1] flex flex-col gap-y-2 p-2">
-										{#each Utils.Range(tagsStart, Utils.RangeArrayEnd(tagsEnd, noOfTags)) as tgsIndex (tgsIndex)}
-											<label
-												class="input w-full {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
-													? 'input-primary'
-													: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
-														? 'input-secondary'
-														: 'input-accent'}"
-											>
-												<span class="label">{tgsIndex + 1}</span>
+										{#if datum.tags}
+											{#each Utils.Range(tagsStart, Utils.RangeArrayEnd(tagsEnd, noOfTags)) as tgsIndex (tgsIndex)}
+												<label
+													class="input w-full {State.ThemeColor.value === Domain.Entities.Theme.Color.PRIMARY
+														? 'input-primary'
+														: State.ThemeColor.value === Domain.Entities.Theme.Color.SECONDARY
+															? 'input-secondary'
+															: 'input-accent'}"
+												>
+													<span class="label">{tgsIndex + 1}</span>
 
-												<input
-													placeholder="Enter tag value..."
-													type="text"
-													value={datum.tags[tgsIndex]}
-													oninput={(event: Event & { currentTarget: EventTarget & HTMLInputElement }) => {
-														datum.updateTags(tgsIndex, event.currentTarget.value)
-													}}
-												/>
-
-												<span class="label">
-													<button
-														class="btn btn-md btn-ghost"
-														aria-label="Delete tag {tgsIndex}"
-														onclick={() => {
-															datum.deleteTags(tgsIndex)
-															if (tgsIndex > datum.tags.length - 1) {
-																noOfTags -= 1
-															}
+													<input
+														placeholder="Enter tag value..."
+														type="text"
+														value={datum.tags[tgsIndex]}
+														oninput={(event: Event & { currentTarget: EventTarget & HTMLInputElement }) => {
+															datum.updateTags(tgsIndex, event.currentTarget.value)
 														}}
-													>
-														<!--mdi:delete source: https://icon-sets.iconify.design-->
-														<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-															<path
-																fill="var({Utils.Theme.GetColor(State.ThemeColor.value)})"
-																d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z"
-															/>
-														</svg>
-													</button>
-												</span>
-											</label>
-										{/each}
+													/>
+
+													<span class="label">
+														<button
+															class="btn btn-md btn-ghost"
+															aria-label="Delete tag {tgsIndex}"
+															onclick={() => {
+																datum.deleteTags(tgsIndex)
+																if (tgsIndex > datum.tags.length - 1) {
+																	noOfTags -= 1
+																}
+															}}
+														>
+															<!--mdi:delete source: https://icon-sets.iconify.design-->
+															<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+																<path
+																	fill="var({Utils.Theme.GetColor(State.ThemeColor.value)})"
+																	d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z"
+																/>
+															</svg>
+														</button>
+													</span>
+												</label>
+											{/each}
+										{/if}
 									</main>
 
 									<footer

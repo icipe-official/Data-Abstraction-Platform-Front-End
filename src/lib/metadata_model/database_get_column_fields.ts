@@ -93,7 +93,8 @@ class _ {
 
 			if (
 				Array.isArray(mmGroupFields[fgKey][FgProperties.GROUP_FIELDS]) &&
-				typeof mmGroupFields[fgKey][FgProperties.DATABASE_FIELD_COLUMN_NAME] === 'undefined'
+				typeof mmGroupFields[fgKey][FgProperties.DATABASE_FIELD_COLUMN_NAME] === 'undefined' &&
+				!mmGroupFields[fgKey][FgProperties.GROUP_EXTRACT_AS_SINGLE_FIELD]
 			) {
 				this.GetDatabaseColumnFields(mmGroupFields[fgKey])
 				continue
