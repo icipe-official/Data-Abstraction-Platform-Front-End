@@ -22,7 +22,7 @@
 
 <div class="flex h-full w-full flex-col gap-y-2 overflow-hidden p-2">
 	<header class="flex-[0.5]">
-		<h1 class="text-center text-3xl font-bold">VECTOR ATLAS<span>-</span><span class="text-primary">DATA ABSTRACTION PLAFORM</span></h1>
+		<h1 class="text-center text-3xl font-bold">VECTOR ATLAS<span>-</span><span class="text-primary">DATA ABSTRACTION PLATFORM</span></h1>
 	</header>
 
 	<main class="flex flex-[9] justify-center overflow-auto">
