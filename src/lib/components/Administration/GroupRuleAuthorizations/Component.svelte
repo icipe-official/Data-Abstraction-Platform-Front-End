@@ -140,7 +140,7 @@
 	let createGroupRuleAuthorizationsStep: number = $state(0)
 
 	let createGroupRuleAuthorizationsDataValid: boolean = $derived(
-		groupRuleAuthorizationsSearch.selectedindexes!.length > 0 &&
+		groupAuthorizationRulesSearch.selectedindexes!.length > 0 &&
 			(typeof directoryGroupIDContext === 'string' || directoryGroupsSearch.selectedindexes!.length > 0)
 	)
 	async function handleCreateGroupRuleAuthorizations() {
@@ -170,8 +170,8 @@
 
 		let newGroupRuleAuthorizations: Domain.Entities.GroupRuleAuthorizations.Interface[] = []
 		for (const dg of directoryGroups) {
-			for (const gdIndex of groupRuleAuthorizationsSearch.selectedindexes!) {
-				const gar: Domain.Entities.GroupAuthorizationRules.Interface = groupRuleAuthorizationsSearch.searchresults![gdIndex]
+			for (const gdIndex of groupAuthorizationRulesSearch.selectedindexes!) {
+				const gar: Domain.Entities.GroupAuthorizationRules.Interface = groupAuthorizationRulesSearch.searchresults![gdIndex]
 				if (Array.isArray(gar.group_authorization_rules_id) && gar.group_authorization_rules_id.length > 0) {
 					const id = gar.group_authorization_rules_id[0].id
 					const group = gar.group_authorization_rules_id[0].rule_group
