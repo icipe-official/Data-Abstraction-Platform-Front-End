@@ -1284,6 +1284,7 @@
 								}}
 								viewdatasearch={abstractionsSearch.viewdatasearch}
 								updateviewdatasearch={(value) => (abstractionsSearch.viewdatasearch = value)}
+								authcontextdirectorygroupid={authContextDirectoryGroupID}
 							></ViewAbstractionsSearchBar>
 						</div>
 					{/await}

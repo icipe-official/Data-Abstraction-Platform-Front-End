@@ -22,7 +22,8 @@ export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
 	let metadataModelSearch: Domain.Interfaces.MetadataModels.Search
 
 	if (params.id && params.id.length >= 27) {
-		const authContextDirectoryGroupID = url.searchParams.get(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID)
+		const authContextDirectoryGroupID =
+			url.searchParams.get(Domain.Entities.Url.SearchParams.AUTH_CONTEXT_DIRECTORY_GROUP_ID) || data.directory_group_id
 		try {
 			metadataModelSearch = new Interfaces.MetadataModels.SearchData(
 				`${Domain.Entities.Url.ApiUrlPaths.Storage.Files}${Domain.Entities.Url.MetadataModelSearchGetMMPath}`,
@@ -30,7 +31,7 @@ export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
 				fetch
 			)
 
-			await metadataModelSearch.FetchMetadataModel(authContextDirectoryGroupID || undefined, 1, undefined)
+			await metadataModelSearch.FetchMetadataModel(authContextDirectoryGroupID, 1, undefined)
 		} catch (e) {
 			if (Array.isArray(e) && e.length === 2) {
 				error(e[0], e[1])
@@ -73,8 +74,8 @@ export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
 			try {
 				await metadataModelSearch.Search(
 					queryCondition,
-					authContextDirectoryGroupID || undefined,
-					authContextDirectoryGroupID || undefined,
+					authContextDirectoryGroupID,
+					data.directory_group_id,
 					1,
 					false,
 					false,

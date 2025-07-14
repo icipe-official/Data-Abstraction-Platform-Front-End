@@ -74,8 +74,8 @@ export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
 			try {
 				await metadataModelSearch.Search(
 					queryCondition,
-					authContextDirectoryGroupID || undefined,
-					authContextDirectoryGroupID || undefined,
+					authContextDirectoryGroupID,
+					data.directory_group_id,
 					1,
 					false,
 					false,
